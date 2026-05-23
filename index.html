@@ -761,7 +761,7 @@ async function autoLoad() {
     hideOverlay();
   } catch(e) {
     hideSpinner();
-    setStatus('Could not auto-load model. Pick the file manually below.');
+    setStatus('Auto-load failed (' + e.message + '). Pick the file manually below.');
     showFilePicker();
   }
 }
