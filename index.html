@@ -680,8 +680,8 @@ function loadHDR(url) {
 }
 
 // ── GLB loader (fetch → ArrayBuffer → parse) ─────────────────────────────────
-async function loadGLBFromURL(url, onProgress) {
-  const response = await fetch(url);
+async function loadGLBFromURL(url, onProgress, fetchHeaders = {}) {
+  const response = await fetch(url, { headers: fetchHeaders });
   if (!response.ok) throw new Error('HTTP ' + response.status);
   const contentLength = response.headers.get('Content-Length');
   const total = contentLength ? parseInt(contentLength, 10) : 0;
@@ -733,30 +733,51 @@ async function loadFromFile(input) {
 }
 window.loadFromFile = loadFromFile;
 
-// ── Auto-load attempt (works when served over HTTP) ───────────────────────────
+// ── Auto-load attempt — routes through GitHub API to avoid CORS block ─────────
 async function autoLoad() {
-  const GLB_URL = 'https://github.com/gabrielestefa/Website/releases/download/v1.0-assets/WaterExtractorWebsite.glb';
-  const HDR_URL = 'https://github.com/gabrielestefa/Website/releases/download/v1.0-assets/aerodynamics_workshop_4k.hdr';
+  const REPO    = 'gabrielestefa/Website';
+  const TAG     = 'v1.0-assets';
+  const GLB_NAME = 'WaterExtractorWebsite.glb';
+  const HDR_NAME = 'aerodynamics_workshop_4k.hdr';
+
   setStatus('Connecting…');
   setProgress(0);
   try {
-    const gltf = await loadGLBFromURL(GLB_URL, (loaded, total, pct) => {
-      if (pct !== null) {
-        setProgress(pct * 0.85);
-        setStatus(`Downloading… ${Math.round(pct)}%`);
-      } else {
-        const mb = (loaded / 1048576).toFixed(1);
-        setStatus(`Downloading… ${mb} MB`);
-        const estimated = Math.min(85, (loaded / (74 * 1048576)) * 85);
-        setProgress(estimated);
-      }
-    });
+    // GitHub API is CORS-enabled; get asset URLs dynamically
+    const apiRes = await fetch(
+      `https://api.github.com/repos/${REPO}/releases/tags/${TAG}`,
+      { headers: { Accept: 'application/vnd.github+json' } }
+    );
+    if (!apiRes.ok) throw new Error('GitHub API ' + apiRes.status);
+    const release = await apiRes.json();
+
+    const glbAsset = release.assets.find(a => a.name === GLB_NAME);
+    const hdrAsset = release.assets.find(a => a.name === HDR_NAME);
+    if (!glbAsset) throw new Error('GLB not found in release');
+
+    // Fetch the binary via the API asset endpoint (sends Accept header → CORS preflight
+    // passes on api.github.com, which then redirects to the CDN with CORS headers)
+    const gltf = await loadGLBFromURL(
+      glbAsset.url,
+      (loaded, total, pct) => {
+        if (pct !== null) {
+          setProgress(pct * 0.85);
+          setStatus(`Downloading… ${Math.round(pct)}%`);
+        } else {
+          const mb = (loaded / 1048576).toFixed(1);
+          setStatus(`Downloading… ${mb} MB`);
+          setProgress(Math.min(85, (loaded / (74 * 1048576)) * 85));
+        }
+      },
+      { Accept: 'application/octet-stream' }
+    );
+
     setProgress(88);
     setStatus('Parsing model…');
     processGLTF(gltf);
     setProgress(95);
     setStatus('Loading lighting…');
-    loadHDR(HDR_URL);
+    if (hdrAsset) loadHDR(hdrAsset.browser_download_url);
     setProgress(100);
     hideOverlay();
   } catch(e) {
