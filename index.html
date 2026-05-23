@@ -720,10 +720,10 @@ async function autoLoad() {
 
   // First: try to load GLB from same directory
   try {
-    const gltf = await loadGLBFromURL('./WaterExtractorWebsite.glb');
+    const gltf = await loadGLBFromURL('https://github.com/gabrielestefa/Website/releases/download/v1.0-assets/WaterExtractorWebsite.glb');
     processGLTF(gltf);
     // Try HDR too
-    loadHDR('./aerodynamics_workshop_4k.hdr');
+    loadHDR('https://github.com/gabrielestefa/Website/releases/download/v1.0-assets/aerodynamics_workshop_4k.hdr');
     hideOverlay();
     return;
   } catch(e) {
