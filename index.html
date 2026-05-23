@@ -675,14 +675,29 @@ function loadHDR(url) {
 }
 
 // ── GLB loader (fetch → ArrayBuffer → parse) ─────────────────────────────────
-async function loadGLBFromURL(url) {
-  const loader = new THREE.GLTFLoader();
+async function loadGLBFromURL(url, onProgress) {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error('HTTP ' + response.status);
+  const contentLength = response.headers.get('Content-Length');
+  const total = contentLength ? parseInt(contentLength, 10) : 0;
+  let loaded = 0;
+  const reader = response.body.getReader();
+  const chunks = [];
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    loaded += value.byteLength;
+    if (onProgress) {
+      const pct = total ? (loaded / total) * 100 : null;
+      onProgress(loaded, total, pct);
+    }
+  }
+  const merged = new Uint8Array(loaded);
+  let pos = 0;
+  for (const chunk of chunks) { merged.set(chunk, pos); pos += chunk.byteLength; }
   return new Promise((resolve, reject) => {
-    loader.load(url,
-      resolve,
-      xhr => { if (xhr.total) setProgress(Math.round(xhr.loaded / xhr.total * 100)); },
-      reject
-    );
+    new THREE.GLTFLoader().parse(merged.buffer, '', resolve, reject);
   });
 }
 
@@ -715,25 +730,35 @@ window.loadFromFile = loadFromFile;
 
 // ── Auto-load attempt (works when served over HTTP) ───────────────────────────
 async function autoLoad() {
-  setStatus('Loading model…');
+  const GLB_URL = 'https://github.com/gabrielestefa/Website/releases/download/v1.0-assets/WaterExtractorWebsite.glb';
+  const HDR_URL = 'https://github.com/gabrielestefa/Website/releases/download/v1.0-assets/aerodynamics_workshop_4k.hdr';
+  setStatus('Connecting…');
   setProgress(0);
-
-  // First: try to load GLB from same directory
   try {
-    const gltf = await loadGLBFromURL('https://github.com/gabrielestefa/Website/releases/download/v1.0-assets/WaterExtractorWebsite.glb');
+    const gltf = await loadGLBFromURL(GLB_URL, (loaded, total, pct) => {
+      if (pct !== null) {
+        setProgress(pct * 0.85);
+        setStatus(`Downloading… ${Math.round(pct)}%`);
+      } else {
+        const mb = (loaded / 1048576).toFixed(1);
+        setStatus(`Downloading… ${mb} MB`);
+        const estimated = Math.min(85, (loaded / (74 * 1048576)) * 85);
+        setProgress(estimated);
+      }
+    });
+    setProgress(88);
+    setStatus('Parsing model…');
     processGLTF(gltf);
-    // Try HDR too
-    loadHDR('https://github.com/gabrielestefa/Website/releases/download/v1.0-assets/aerodynamics_workshop_4k.hdr');
+    setProgress(95);
+    setStatus('Loading lighting…');
+    loadHDR(HDR_URL);
+    setProgress(100);
     hideOverlay();
-    return;
   } catch(e) {
-    // file:// or CORS blocked — fall through to file picker
+    hideSpinner();
+    setStatus('Could not auto-load model. Pick the file manually below.');
+    showFilePicker();
   }
-
-  // Fallback: show file picker
-  hideSpinner();
-  setStatus('Place this HTML, WaterExtractorWebsite.glb and aerodynamics_workshop_4k.hdr in the same folder, then open via a local server — or pick the GLB file manually below.');
-  showFilePicker();
 }
 
 // ── HDR file picker (optional) ────────────────────────────────────────────────
@@ -743,7 +768,7 @@ function addHDRPicker() {
   const div = document.createElement('div');
   div.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:6px;margin-top:4px;border-top:1px solid rgba(255,255,255,0.08);padding-top:10px';
   div.innerHTML = '<div class="file-pick-label" style="color:var(--muted)">Optional: also load <strong>aerodynamics_workshop_4k.hdr</strong></div>'
-    + '<button class="file-pick-btn" style="background:var(--ice-dark)" onclick="document.getElementById('hdr-input').click()">Browse HDR file</button>'
+    + '<button class="file-pick-btn" style="background:var(--ice-dark)" onclick="document.getElementById(\'hdr-input\').click()">Browse HDR file</button>'
     + '<input type="file" id="hdr-input" accept=".hdr" style="display:none" onchange="loadHDRFile(this)">';
   fp.appendChild(div);
 }
