@@ -362,13 +362,18 @@ footer{display:flex;justify-content:space-between;align-items:center;padding:24p
   <div class="footer-made">crafted with obsessive attention to detail</div>
 </footer>
 
-<!-- ── THREE.JS from jsdelivr (consistent build) ── -->
-<script src="https://cdn.jsdelivr.net/npm/three@0.150.1/build/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.150.1/examples/js/loaders/GLTFLoader.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.150.1/examples/js/loaders/RGBELoader.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.150.1/examples/js/pmrem/PMREMGenerator.js"></script>
+<!-- ── THREE.JS via ES modules (r150.1) ── -->
+<script type="importmap">{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.150.1/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.150.1/examples/jsm/"
+  }
+}</script>
 
-<script>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { RGBELoader }  from 'three/addons/loaders/RGBELoader.js';
 // ── State ─────────────────────────────────────────────────────────────────────
 let renderer, scene, camera, clock;
 let model = null;
@@ -661,7 +666,7 @@ function processGLTF(gltf) {
 function loadHDR(url) {
   const pmrem = new THREE.PMREMGenerator(renderer);
   pmrem.compileEquirectangularShader();
-  const rgbe = new THREE.RGBELoader();
+  const rgbe = new RGBELoader();
   rgbe.load(url,
     tex => {
       const envMap = pmrem.fromEquirectangular(tex).texture;
@@ -697,7 +702,7 @@ async function loadGLBFromURL(url, onProgress) {
   let pos = 0;
   for (const chunk of chunks) { merged.set(chunk, pos); pos += chunk.byteLength; }
   return new Promise((resolve, reject) => {
-    new THREE.GLTFLoader().parse(merged.buffer, '', resolve, reject);
+    new GLTFLoader().parse(merged.buffer, '', resolve, reject);
   });
 }
 
