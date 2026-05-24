@@ -146,6 +146,109 @@ Website/
 
 ---
 
+## Session 2 — UV viewer rework (2026-05-24)
+
+### 8. UV viewer freezes on entry (canvas path build-up)
+**Problem:** `drawUVLayout()` accumulated every triangle from every mesh into one giant Canvas2D path via `beginPath` once then `closePath` per triangle, calling `ctx.stroke()` only once at the end. For a ~50k-triangle model this is a single stroke command on a massive path → main thread freeze.
+
+**Fix:** Stroke in batches of 800 triangles. Same pattern applied to the semi-transparent fill pass. Without batching, both passes freeze the page.
+
+---
+
+### 9. 3D viewer squished in UV split mode
+**Problem:** `resize()` used `WRAP.clientWidth` (the full wrapper) for the renderer, but CSS set `#viewer-canvas{width:50%}` in UV mode. The renderer produced full-width pixels into a half-width canvas → 2× horizontal distortion.
+
+**Fix:** `resize()` now reads `CANVAS.clientWidth/Height` directly. The CSS owns layout; the renderer just matches whatever the canvas actually displays. Always defer `resize()` via `requestAnimationFrame` after toggling a layout class so the DOM has laid out before measuring.
+
+---
+
+### 10. UV panel not square / not visible on wide viewports
+**Problem:** Earlier attempts pinned the UV panel to `wrap.clientHeight × wrap.clientHeight` via JS inline styles — on a 1920px viewport that's 540×540, only 28% of the viewer width. User couldn't see the panel.
+
+**Fix:** Pure CSS — both sides get `flex:0 0 50%; width:50%`. Inside, `#uv-canvas{object-fit:contain}` keeps the canvas's internal 1:1 ratio (the canvas is 1024×1024 in pixels) centered as a square via flexbox letterboxing. No JS sizing needed.
+
+---
+
+### 11. UV channel shader silently failed (uv2 redeclaration)
+**Problem:** The channel-aware shader declared `attribute vec2 uv2;` explicitly. In Three.js r150 ShaderMaterial, `uv2` is **automatically injected** in the GLSL preamble when the geometry has that attribute. Our redeclaration was a duplicate-attribute GLSL compile error → shader silently failed → 3D checker always used channel 0 regardless of dropdown.
+
+**Fix:** Drop the explicit `attribute vec2 uv2;` line. Just use `uv2` directly in the shader body — Three.js declares it for you.
+
+**Remember:** In r150 ShaderMaterial, **always-injected** vertex attributes are: `position`, `normal`, `uv`. Conditionally injected (only if geometry has them): `uv2`, `color`, skin/morph attributes. Never re-declare any of these in your shader source.
+
+---
+
+### 12. Material dropdown filtered against wrong UUID
+**Problem:** `drawUVLayout` and `applyMode` filtered meshes with `child.material?.uuid === activeMat`. But `applyMode` *replaces* `child.material` with a checker/wireframe/dim material on every mode switch. After the first switch, no mesh's `child.material.uuid` ever matched the dropdown values (which are *original* material UUIDs captured at load).
+
+**Fix:** Always filter against `meshOrigMat.get(child)?.uuid`. That map preserves the original material reference across mode changes.
+
+**Remember:** Any time you compare against material UUIDs from a dropdown populated at load, look up the **original** material via `meshOrigMat`, never `child.material` directly.
+
+---
+
+### 13. ⚠️ Missing function → silent traverse halt (THE big one)
+
+**Problem:** `applyMode`'s `case 'uv'` called `makeCheckerMat(child.geometry, useUV2)` — but the `makeCheckerMat` function itself was missing from the file (dropped in a prior edit cycle). The first mesh hit threw `ReferenceError: makeCheckerMat is not defined` *inside* the `model.traverse(...)` callback.
+
+Three.js's `Object3D.traverse` does **not** catch errors — the throw bubbles up, the traversal halts immediately, and **no material assignments happen after the first failure**. The original PBR materials persisted, dropdown changes didn't update, and entering UV from wireframe "kept the wireframe" because the new material assignment never executed.
+
+**Why it was hard to find:**
+- No browser console output (the error is eaten by Three's internal callback wrapper)
+- `setMode('uv')` itself didn't throw — it returned normally; the error was deferred to the traverse callback
+- The bug looked like a state issue ("material change doesn't apply", "previous mode persists") rather than a missing-function error
+- Multiple symptoms had one root cause
+
+**How it was found:** Calling `window.setMode('uv')` from `preview_eval` surfaced the error because devtools eval shows uncaught exceptions from the synchronous call stack. The same call from a button click swallowed it.
+
+**Fix:** Re-add the `makeCheckerMat` function definition right after `uvTex = makeUVChecker()`:
+
+```js
+function makeCheckerMat(geo, useUV2) {
+  const hasUV2  = !!geo.attributes.uv2;
+  const pickUV2 = useUV2 && hasUV2;
+  const vs = pickUV2
+    ? `varying vec2 vUv; void main(){ vUv=uv2; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }`
+    : `varying vec2 vUv; void main(){ vUv=uv;  gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }`;
+  return new THREE.ShaderMaterial({
+    uniforms: { map: { value: uvTex } },
+    vertexShader: vs,
+    fragmentShader: `uniform sampler2D map; varying vec2 vUv; void main(){ gl_FragColor=vec4(texture2D(map,vUv).rgb,1.); }`,
+    side: THREE.DoubleSide
+  });
+}
+```
+
+**Lessons to never repeat:**
+1. **Three.js `traverse` swallows errors.** Any uncaught exception inside a `traverse` callback halts iteration silently. When debugging "applyMode didn't run", *always* `try/catch` inside the traverse, or call the inner function on one known mesh outside `traverse` first.
+2. **After every refactor, grep the file for the function name.** If `makeCheckerMat` is *called* once but *defined* zero times, that's a syntax-level red flag that should be caught before the user sees anything.
+3. **When a single bug produces multiple unrelated-looking symptoms** ("material doesn't update", "previous mode persists", "channel switch doesn't work"), suspect a hard-fail upstream that prevents the whole code path from running, not three separate state bugs.
+4. **Use the preview tools earlier.** A single `preview_eval` calling `window.setMode('uv')` would have surfaced the ReferenceError instantly. Don't spend turns guessing at state issues when you can just *evaluate the call* and read the stack trace.
+
+---
+
+### 14. Texel slider race (dispose-before-swap)
+**Problem:** `setCheckerTiles` did `uvTex.dispose()` *before* creating the new texture and updating uniform references. Between those two lines, materials' `uniforms.map.value` pointed at a disposed texture. Synchronous JS means no render fires in between, so no visible bug *most* of the time — but it's the kind of thing that fails under high-frequency events (slider drag at 60Hz).
+
+**Fix:** Build new texture first, swap every active `ShaderMaterial`'s `uniforms.map.value` to the new texture, *then* dispose the old one.
+
+---
+
+### 15. Final UV mode behavior matrix
+
+| Mode      | Match (selected material)            | No match (dropdown filter excludes)    |
+|-----------|--------------------------------------|----------------------------------------|
+| Beauty    | Original PBR material                | Dim `0x1a1208`, opacity 0.25           |
+| Wireframe | Amber wireframe                      | Dim                                    |
+| **UV**    | UV checker + 40% colored wireframe overlay (hue from `meshHueMap`) | Dim |
+| Texture   | Selected map (diffuse / normal / RMA channel) | Dim                            |
+
+**Why dim in UV mode too:** Earlier iterations applied the checker to *all* meshes regardless of selection — but then "select MAIN" produced no visible change in the 3D viewer (only the 2D panel updated). Dimming non-matching meshes in UV mode makes the dropdown change unmistakable visually, and is consistent with the other modes.
+
+**Hue map:** `meshHueMap: Map<Mesh, hueDeg>` is keyed at load time by *material* (not mesh index), so all meshes sharing a material get the same hue, and the 2D UV panel + 3D wireframe overlay always cross-reference correctly.
+
+---
+
 ## Known remaining issues (from AUDIT.md)
 
 | Priority | Issue |

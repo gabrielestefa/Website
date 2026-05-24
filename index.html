@@ -84,12 +84,12 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;display:flex;justify-content
 .vt-btn.active{background:var(--amber);color:var(--deep);border-color:var(--amber)}
 .vt-btn.ch-active{background:var(--ice-dark);color:var(--deep);border-color:var(--ice-dark)}
 .viewer-canvas-wrap{position:relative;height:540px;background:#0d0b08;display:flex}
-.viewer-canvas-wrap.uv-split #viewer-canvas{width:50%}
-.viewer-canvas-wrap.uv-split .uv-panel{display:flex!important}
+.viewer-canvas-wrap.uv-split #viewer-canvas{flex:0 0 50%;width:50%}
+.viewer-canvas-wrap.uv-split .uv-panel{display:flex!important;flex:0 0 50%;width:50%}
 #viewer-canvas{width:100%;height:100%;display:block;cursor:grab;outline:none;flex-shrink:0}
 #viewer-canvas:active{cursor:grabbing}
-.uv-panel{flex:1;border-left:1px solid rgba(212,130,58,0.15);overflow:hidden;display:none;align-items:stretch}
-#uv-canvas{width:100%;height:100%;display:block;image-rendering:pixelated}
+.uv-panel{border-left:1px solid rgba(212,130,58,0.15);overflow:hidden;display:none;align-items:center;justify-content:center;background:#0d0b08}
+#uv-canvas{width:100%;height:100%;display:block;image-rendering:pixelated;object-fit:contain}
 .viewer-overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:#0d0b08;z-index:10;transition:opacity 0.5s,visibility 0.5s}
 .viewer-overlay.gone{opacity:0;visibility:hidden;pointer-events:none}
 .vt-select{font-family:var(--mono);font-size:10px;letter-spacing:0.08em;text-transform:uppercase;padding:5px 8px;background:var(--deep2);border:1px solid rgba(255,255,255,0.1);color:var(--sand);cursor:pointer;border-radius:2px;outline:none;transition:border-color 0.2s}
@@ -283,8 +283,9 @@ footer{display:flex;justify-content:space-between;align-items:center;padding:24p
       </div>
       <div class="vt-group" style="margin-left:auto;margin-right:0;padding-right:0;border-right:none">
         <span class="vt-label">Material</span>
-        <button class="vt-btn active" id="btn-mat-main"    onclick="setActiveMat('main')">Main</button>
-        <button class="vt-btn"        id="btn-mat-details"  onclick="setActiveMat('details')">Details</button>
+        <select class="vt-select" id="mat-select" onchange="setActiveMat(this.value)">
+          <option value="all">All</option>
+        </select>
       </div>
     </div>
 
@@ -411,12 +412,13 @@ const meshOrigMat  = new Map(); // mesh → original Material
 const meshTextures = new Map(); // mesh → { diffuse, normal, rma }
 let uvTex = null;
 let checkerTiles = 10;
-const meshHueMap = new Map();      // mesh → hue (0–360), assigned at load time
+const meshHueMap = new Map();      // mesh  → hue (0–360), derived from material
+const matHueMap  = new Map();      // matUUID → hue (0–360), assigned at load time
 const uvOverlayMeshes = [];        // {parent, mesh} wireframe overlays active in UV mode
 let currentMode   = 'beauty';
 let currentTexMap = 'diffuse';  // active map in Texture mode
 let currentUVSet  = 'uv';       // 'uv' | 'uv2' | 'uv3'
-let activeMat = 'main';
+let activeMat = 'all';          // 'all' or a material UUID
 let rmaChannel = 'r';
 
 const CANVAS = document.getElementById('viewer-canvas');
@@ -506,35 +508,48 @@ CANVAS.addEventListener('contextmenu', e => e.preventDefault());
 
 // ── Procedural UV checker ─────────────────────────────────────────────────────
 function makeUVChecker(cells = 10) {
-  const sz = 1024, cell = sz / cells;
+  const sz = 2048, cell = sz / cells;
   const c = document.createElement('canvas'); c.width = c.height = sz;
   const ctx = c.getContext('2d');
-  for (let r = 0; r < cells; r++) for (let cc = 0; cc < cells; cc++) {
-    ctx.fillStyle = (r + cc) % 2 === 0 ? '#e8d5b0' : '#241e17';
-    ctx.fillRect(cc * cell, r * cell, cell, cell);
+
+  for (let r = 0; r < cells; r++) {
+    for (let cc = 0; cc < cells; cc++) {
+      const even = (r + cc) % 2 === 0;
+      const grd = ctx.createLinearGradient(cc*cell, r*cell, (cc+1)*cell, (r+1)*cell);
+      if (even) { grd.addColorStop(0,'#f2e4c8'); grd.addColorStop(1,'#c8a878'); }
+      else       { grd.addColorStop(0,'#2c2318'); grd.addColorStop(1,'#181210'); }
+      ctx.fillStyle = grd;
+      ctx.fillRect(cc*cell, r*cell, cell, cell);
+    }
   }
-  ctx.strokeStyle = '#d4823a'; ctx.lineWidth = 1.5;
+  // grid lines
+  ctx.strokeStyle = 'rgba(212,130,58,0.55)'; ctx.lineWidth = 2;
   for (let i = 0; i <= cells; i++) {
-    ctx.beginPath(); ctx.moveTo(i * cell, 0); ctx.lineTo(i * cell, sz); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(0, i * cell); ctx.lineTo(sz, i * cell); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(i*cell,0); ctx.lineTo(i*cell,sz); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0,i*cell); ctx.lineTo(sz,i*cell); ctx.stroke();
   }
-  ctx.fillStyle = '#f0a042'; ctx.font = `bold ${Math.floor(cell * 0.22)}px monospace`;
+  // coordinate labels
+  const fs = Math.max(12, Math.floor(cell * 0.2));
+  ctx.fillStyle = '#f0a042'; ctx.font = `bold ${fs}px monospace`;
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  for (let r = 0; r < cells; r++) for (let cc = 0; cc < cells; cc++)
-    ctx.fillText(`${cc},${r}`, cc * cell + cell / 2, r * cell + cell / 2);
+  for (let r = 0; r < cells; r++)
+    for (let cc = 0; cc < cells; cc++)
+      ctx.fillText(`${cc},${r}`, cc*cell + cell/2, r*cell + cell/2);
+
   const t = new THREE.CanvasTexture(c);
   t.encoding = THREE.LinearEncoding;
+  t.anisotropy = 16;
   return t;
 }
 uvTex = makeUVChecker();
 
-// ── Per-mesh UV checker material (channel-aware) ───────────────────────────────
+// ── UV checker material (channel-aware ShaderMaterial) ────────────────────────
 function makeCheckerMat(geo, useUV2) {
   const hasUV2 = !!geo.attributes.uv2;
   const pickUV2 = useUV2 && hasUV2;
   const vs = pickUV2
-    ? `attribute vec2 uv2; varying vec2 vUv; void main(){ vUv=uv2; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }`
-    : `varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }`;
+    ? `varying vec2 vUv; void main(){ vUv=uv2; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }`
+    : `varying vec2 vUv; void main(){ vUv=uv;  gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }`;
   return new THREE.ShaderMaterial({
     uniforms: { map: { value: uvTex } },
     vertexShader: vs,
@@ -581,21 +596,36 @@ function applyMode() {
   model.traverse(child => {
     if (!child.isMesh || child.userData.uvOverlay) return;
     const tex = meshTextures.get(child) || {};
+    const origMat = meshOrigMat.get(child);
+    const matMatch = activeMat === 'all' || origMat?.uuid === activeMat;
     switch (currentMode) {
       case 'beauty':
-        child.material = meshOrigMat.get(child) || child.material;
+        if (!matMatch) {
+          child.material = new THREE.MeshBasicMaterial({ color: 0x1a1208, transparent: true, opacity: 0.25 });
+        } else {
+          child.material = meshOrigMat.get(child) || child.material;
+        }
         break;
       case 'wireframe':
-        child.material = new THREE.MeshBasicMaterial({ color: 0xd4823a, wireframe: true });
+        if (!matMatch) {
+          child.material = new THREE.MeshBasicMaterial({ color: 0x1a1208, transparent: true, opacity: 0.25 });
+        } else {
+          child.material = new THREE.MeshBasicMaterial({ color: 0xd4823a, wireframe: true });
+        }
         break;
       case 'uv': {
+        if (!matMatch) {
+          child.material = new THREE.MeshBasicMaterial({ color: 0x1a1208, transparent: true, opacity: 0.25 });
+          break;
+        }
+        // matching mesh: UV checker + 40% colored wireframe overlay
         child.material = makeCheckerMat(child.geometry, useUV2);
         const hue = meshHueMap.get(child) ?? 0;
         const overlay = new THREE.Mesh(
           child.geometry,
           new THREE.MeshBasicMaterial({
             color: new THREE.Color().setHSL(hue / 360, 0.8, 0.65),
-            wireframe: true, transparent: true, opacity: 0.45
+            wireframe: true, transparent: true, opacity: 0.40, depthWrite: false
           })
         );
         overlay.userData.uvOverlay = true;
@@ -604,7 +634,11 @@ function applyMode() {
         break;
       }
       case 'texture': {
-        const [base, ch] = currentTexMap.split('_'); // e.g. 'rma_r' → ['rma','r']
+        if (!matMatch) {
+          child.material = new THREE.MeshBasicMaterial({ color: 0x1a1208, transparent: true, opacity: 0.25 });
+          break;
+        }
+        const [base, ch] = currentTexMap.split('_');
         if (base === 'diffuse') {
           child.material = tex.diffuse
             ? new THREE.MeshBasicMaterial({ map: tex.diffuse })
@@ -613,7 +647,7 @@ function applyMode() {
           child.material = tex.normal
             ? normalViewMat(tex.normal)
             : new THREE.MeshBasicMaterial({ color: 0x8080ff });
-        } else { // rma channel
+        } else {
           child.material = tex.rma
             ? channelMat(tex.rma, ch || 'r')
             : new THREE.MeshBasicMaterial({ color: 0x888888 });
@@ -635,39 +669,73 @@ function drawUVLayout(uvSetName) {
   ctx.fillStyle = '#0d0b08';
   ctx.fillRect(0, 0, sz, sz);
 
-  // subtle grid lines at 0.25 increments
-  ctx.strokeStyle = 'rgba(212,130,58,0.08)';
-  ctx.lineWidth = 0.5;
-  [0.25, 0.5, 0.75, 1].forEach(t => {
-    ctx.beginPath(); ctx.moveTo(t*sz, 0); ctx.lineTo(t*sz, sz); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(0, t*sz); ctx.lineTo(sz, t*sz); ctx.stroke();
-  });
+  // UV space border
+  ctx.strokeStyle = 'rgba(212,130,58,0.5)';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(2, 2, sz-4, sz-4);
+
+  // grid lines — finer at 0.1, stronger at 0.25/0.5/0.75
+  for (let n = 1; n < 10; n++) {
+    const t = n / 10;
+    const quarter = n % 2.5 === 0; // 0.25, 0.5, 0.75 lands as multiples of 0.25
+    const isQuarter = (n === 2 || n === 5 || n === 7); // .2=0.2 skip; use direct check
+    const strong = n % 5 === 0; // 0.5 mark
+    const mid    = n % 2 === 0 && n !== 0; // 0.2, 0.4, 0.6, 0.8 — but skip 0.5
+    ctx.strokeStyle = strong
+      ? 'rgba(212,130,58,0.20)'
+      : mid
+        ? 'rgba(212,130,58,0.10)'
+        : 'rgba(212,130,58,0.05)';
+    ctx.lineWidth = strong ? 1.5 : 0.8;
+    ctx.beginPath(); ctx.moveTo(t*sz,0); ctx.lineTo(t*sz,sz); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0,t*sz); ctx.lineTo(sz,t*sz); ctx.stroke();
+  }
 
   if (!model) return;
 
-  // collect meshes that have the requested UV set (overlays excluded)
+  // collect meshes: must have the UV set, and match the active material filter
   const meshes = [];
   model.traverse(child => {
-    if (child.isMesh && !child.userData.uvOverlay && child.geometry.attributes[uvSetName]) meshes.push(child);
+    if (!child.isMesh || child.userData.uvOverlay) return;
+    if (!child.geometry.attributes[uvSetName]) return;
+    if (activeMat !== 'all' && meshOrigMat.get(child)?.uuid !== activeMat) return;
+    meshes.push(child);
   });
 
-  ctx.lineWidth = 0.7;
   const BATCH = 800;
   meshes.forEach(child => {
     const hue = meshHueMap.get(child) ?? 0;
-    ctx.strokeStyle = `hsla(${hue},80%,65%,0.8)`;
     const geo  = child.geometry;
     const uvA  = geo.attributes[uvSetName];
     const idx  = geo.index;
     const count = idx ? idx.count : uvA.count;
+
+    // 1 — semi-transparent fill to show density (batched to avoid main-thread freeze)
+    ctx.fillStyle = `hsla(${hue},80%,60%,0.07)`;
     ctx.beginPath();
     for (let i = 0; i < count; i += 3) {
       const a = idx ? idx.getX(i)   : i;
       const b = idx ? idx.getX(i+1) : i+1;
       const c = idx ? idx.getX(i+2) : i+2;
-      ctx.moveTo( uvA.getX(a)*sz,        (1-uvA.getY(a))*sz );
-      ctx.lineTo( uvA.getX(b)*sz,        (1-uvA.getY(b))*sz );
-      ctx.lineTo( uvA.getX(c)*sz,        (1-uvA.getY(c))*sz );
+      ctx.moveTo(uvA.getX(a)*sz, (1-uvA.getY(a))*sz);
+      ctx.lineTo(uvA.getX(b)*sz, (1-uvA.getY(b))*sz);
+      ctx.lineTo(uvA.getX(c)*sz, (1-uvA.getY(c))*sz);
+      ctx.closePath();
+      if ((i / 3 + 1) % BATCH === 0) { ctx.fill(); ctx.beginPath(); }
+    }
+    ctx.fill();
+
+    // 2 — wireframe on top
+    ctx.strokeStyle = `hsla(${hue},90%,70%,0.9)`;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    for (let i = 0; i < count; i += 3) {
+      const a = idx ? idx.getX(i)   : i;
+      const b = idx ? idx.getX(i+1) : i+1;
+      const c = idx ? idx.getX(i+2) : i+2;
+      ctx.moveTo(uvA.getX(a)*sz, (1-uvA.getY(a))*sz);
+      ctx.lineTo(uvA.getX(b)*sz, (1-uvA.getY(b))*sz);
+      ctx.lineTo(uvA.getX(c)*sz, (1-uvA.getY(c))*sz);
       ctx.closePath();
       if ((i / 3 + 1) % BATCH === 0) { ctx.stroke(); ctx.beginPath(); }
     }
@@ -677,7 +745,6 @@ function drawUVLayout(uvSetName) {
 
 // ── Toolbar handlers ──────────────────────────────────────────────────────────
 const modeBtns = ['beauty','wireframe','uv','texture'];
-const matBtns  = ['main','details'];
 
 window.setMode = mode => {
   currentMode = mode;
@@ -687,7 +754,7 @@ window.setMode = mode => {
   document.getElementById('grp-uvset').style.display   = mode === 'uv'      ? 'flex' : 'none';
   document.getElementById('grp-texel').style.display   = mode === 'uv'      ? 'flex' : 'none';
   document.getElementById('grp-texmap').style.display  = mode === 'texture'  ? 'flex' : 'none';
-  // UV split-panel
+  // UV split-panel — CSS handles the 50/50 split; canvas inside is square via object-fit
   const wrap = document.getElementById('viewer-canvas-wrap');
   if (mode === 'uv') {
     wrap.classList.add('uv-split');
@@ -701,8 +768,7 @@ window.setMode = mode => {
 
 window.setActiveMat = mat => {
   activeMat = mat;
-  matBtns.forEach(m => document.getElementById('btn-mat-'+m)?.classList.remove('active'));
-  document.getElementById('btn-mat-'+mat)?.classList.add('active');
+  if (currentMode === 'uv') drawUVLayout(currentUVSet);
   applyMode();
 };
 
@@ -719,13 +785,17 @@ window.setUVSet = uvSet => {
 window.setCheckerTiles = n => {
   checkerTiles = n;
   document.getElementById('texel-val').textContent = n;
-  uvTex.dispose();
-  uvTex = makeUVChecker(n);
-  // push new texture into any active checker ShaderMaterials
+  // build the new texture FIRST, swap references on every active checker
+  // ShaderMaterial, then dispose the old texture — avoids a 1-frame window
+  // where uniforms reference a disposed texture
+  const newTex = makeUVChecker(n);
   if (model) model.traverse(child => {
     if (!child.isMesh || child.userData.uvOverlay) return;
-    if (child.material?.uniforms?.map) child.material.uniforms.map.value = uvTex;
+    if (child.material?.uniforms?.map) child.material.uniforms.map.value = newTex;
   });
+  const oldTex = uvTex;
+  uvTex = newTex;
+  oldTex?.dispose();
 };
 // legacy — kept so any existing onclick="setRMAChannel" still works
 window.setRMAChannel = ch => { rmaChannel = ch; applyMode(); };
@@ -803,10 +873,37 @@ function processGLTF(gltf) {
   meshOrigMat.clear();
   meshTextures.clear();
   meshHueMap.clear();
-  // assign a stable hue to every mesh (used by UV mode + UV panel)
-  const allMeshes = [];
-  model.traverse(c => { if (c.isMesh && !c.userData.uvOverlay) allMeshes.push(c); });
-  allMeshes.forEach((m, i) => meshHueMap.set(m, (i / Math.max(allMeshes.length, 1)) * 360));
+  matHueMap.clear();
+
+  // collect unique materials and assign a hue to each
+  const uniqueMats = [];
+  model.traverse(c => {
+    if (!c.isMesh || c.userData.uvOverlay) return;
+    const mat = c.material;
+    if (mat && !matHueMap.has(mat.uuid)) {
+      matHueMap.set(mat.uuid, 0); // placeholder
+      uniqueMats.push(mat);
+    }
+  });
+  uniqueMats.forEach((mat, i) => matHueMap.set(mat.uuid, (i / Math.max(uniqueMats.length, 1)) * 360));
+
+  // derive per-mesh hue from its material
+  model.traverse(c => {
+    if (c.isMesh && !c.userData.uvOverlay)
+      meshHueMap.set(c, matHueMap.get(c.material?.uuid) ?? 0);
+  });
+
+  // populate material dropdown
+  activeMat = 'all';
+  const matSel = document.getElementById('mat-select');
+  matSel.innerHTML = '<option value="all">All</option>';
+  uniqueMats.forEach(mat => {
+    const opt = document.createElement('option');
+    opt.value = mat.uuid;
+    opt.textContent = mat.name || `Material ${matSel.options.length}`;
+    matSel.appendChild(opt);
+  });
+  matSel.value = 'all';
 
   model.traverse(child => {
     if (!child.isMesh) return;
