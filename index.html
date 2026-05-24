@@ -1482,10 +1482,22 @@ async function loadManifest() {
       card.innerHTML += `<div class="coming-soon-content"><div class="cs-title">${p.title}</div><div>Coming soon</div></div>`;
     } else {
       const img = document.createElement('img');
-      img.src = r2Url(p.folder, p.thumbnail || 'Thumbnail.jpg');
       img.alt = p.title;
       img.loading = 'lazy';
-      img.onerror = () => { img.style.display = 'none'; }; // hide broken images gracefully
+      // Try the Worker-provided thumbnail first; on failure, try every common
+      // extension before giving up. Worker always provides the right name, but
+      // this protects against stale-cache mismatches.
+      const fallbacks = [
+        p.thumbnail,
+        'Thumbnail.jpg', 'Thumbnail.png', 'Thumbnail.jpeg', 'Thumbnail.webp'
+      ].filter((v, i, a) => v && a.indexOf(v) === i); // unique, drop nulls
+      let fbIdx = 0;
+      img.onerror = () => {
+        fbIdx++;
+        if (fbIdx < fallbacks.length) img.src = r2Url(p.folder, fallbacks[fbIdx]);
+        else img.style.display = 'none';
+      };
+      img.src = r2Url(p.folder, fallbacks[0]);
       card.appendChild(img);
       const overlay = document.createElement('div');
       overlay.className = 'work-overlay';
