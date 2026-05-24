@@ -1,0 +1,14 @@
+name              = "portfolio-api"
+main              = "index.js"
+compatibility_date = "2024-12-01"
+
+# Bind your R2 bucket as `MEDIA` so the worker can list/read it.
+# Replace `bucket_name` with the actual bucket name from the R2 dashboard
+# (it's the same bucket served by pub-908f0e2a5d054f33ae9b177d94e05ace.r2.dev).
+[[r2_buckets]]
+binding     = "MEDIA"
+bucket_name = "REPLACE_WITH_BUCKET_NAME"
+
+# Observability: free, lets you tail logs with `wrangler tail`.
+[observability]
+enabled = true

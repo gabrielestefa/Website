@@ -432,7 +432,17 @@ const R2_BASE = 'https://pub-908f0e2a5d054f33ae9b177d94e05ace.r2.dev';
 const r2Url   = (folder, file) =>
   `${R2_BASE}/projects/${encodeURI(folder)}/${encodeURI(file)}`;
 
-const PROJECTS = [
+// ── Cloudflare Worker that lists the R2 bucket dynamically ────────────────────
+// When set, the site fetches the project manifest from this endpoint at boot,
+// so new folders / files on R2 appear automatically. Leave '' to use the
+// hardcoded fallback PROJECTS list below.
+//   Worker source:   ./worker/index.js
+//   Deploy guide:    ./worker/README.md
+const WORKER_URL = ''; // e.g. 'https://portfolio-api.<account>.workers.dev'
+
+// Hardcoded fallback used when WORKER_URL is empty or the fetch fails.
+// Lives here so the site keeps working before the Worker is deployed.
+let PROJECTS = [
   {
     title: 'Water Extractor',
     folder: 'Water Extractor',
@@ -1433,10 +1443,37 @@ const lightbox = (() => {
   return { open, close };
 })();
 
+// ── Fetch dynamic manifest from Cloudflare Worker (if configured) ────────────
+async function loadManifest() {
+  if (!WORKER_URL) return null;
+  try {
+    const res = await fetch(WORKER_URL, { mode: 'cors' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    if (!data || !Array.isArray(data.projects)) throw new Error('bad shape');
+    // Normalise to the same shape the renderer expects.
+    return data.projects.map(p => ({
+      title:      p.title || p.folder,
+      folder:     p.folder,
+      badge:      p.badge || '',
+      tags:       p.tags  || [],
+      images:     p.images || [],
+      videos:     p.videos || [],
+      model:      p.model || null,
+      comingSoon: p.comingSoon === true,
+    }));
+  } catch (err) {
+    console.warn('[manifest] Worker fetch failed, using hardcoded fallback:', err);
+    return null;
+  }
+}
+
 // ── Render project cards on the landing page ──────────────────────────────────
-(function renderProjectCards() {
+(async function renderProjectCards() {
   const grid = document.getElementById('work-grid');
   if (!grid) return;
+  const dynamic = await loadManifest();
+  if (dynamic && dynamic.length) PROJECTS = dynamic;
   PROJECTS.forEach((p, i) => {
     const card = document.createElement('div');
     card.className = 'work-card' + (p.comingSoon ? ' coming-soon' : '');
@@ -1445,7 +1482,7 @@ const lightbox = (() => {
       card.innerHTML += `<div class="coming-soon-content"><div class="cs-title">${p.title}</div><div>Coming soon</div></div>`;
     } else {
       const img = document.createElement('img');
-      img.src = r2Url(p.folder, 'Thumbnail.jpg');
+      img.src = r2Url(p.folder, p.thumbnail || 'Thumbnail.jpg');
       img.alt = p.title;
       img.loading = 'lazy';
       card.appendChild(img);
