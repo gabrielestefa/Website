@@ -1,0 +1,14 @@
+# Wrangler — keep real bucket name off public GitHub
+worker/wrangler.toml
+
+# Cloudflare Wrangler local state
+worker/.wrangler/
+
+# Node
+node_modules/
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
