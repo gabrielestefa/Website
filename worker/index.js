@@ -124,7 +124,7 @@ async function listProjects(bucket) {
     };
     let glb = null, hdr = null;
     for (const f of files) {
-      if      (THUMB_RE.test(f))  { project.thumbnail = f; project.images.push(f); }
+      if      (THUMB_RE.test(f))  { project.thumbnail = f; /* card only — not a gallery slide */ }
       else if (IMAGE_EXT.test(f)) { project.images.push(f); }
       else if (VIDEO_EXT.test(f)) { project.videos.push(f); }
       else if (MODEL_EXT.test(f)) { glb = f; }
