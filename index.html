@@ -733,51 +733,27 @@ async function loadFromFile(input) {
 }
 window.loadFromFile = loadFromFile;
 
-// ── Auto-load attempt — routes through GitHub API to avoid CORS block ─────────
+// ── Auto-load (same-origin — files committed directly to git, no CORS) ────────
 async function autoLoad() {
-  const REPO    = 'gabrielestefa/Website';
-  const TAG     = 'v1.0-assets';
-  const GLB_NAME = 'WaterExtractorWebsite.glb';
-  const HDR_NAME = 'aerodynamics_workshop_4k.hdr';
-
-  setStatus('Connecting…');
+  setStatus('Loading model…');
   setProgress(0);
   try {
-    // GitHub API is CORS-enabled; get asset URLs dynamically
-    const apiRes = await fetch(
-      `https://api.github.com/repos/${REPO}/releases/tags/${TAG}`,
-      { headers: { Accept: 'application/vnd.github+json' } }
-    );
-    if (!apiRes.ok) throw new Error('GitHub API ' + apiRes.status);
-    const release = await apiRes.json();
-
-    const glbAsset = release.assets.find(a => a.name === GLB_NAME);
-    const hdrAsset = release.assets.find(a => a.name === HDR_NAME);
-    if (!glbAsset) throw new Error('GLB not found in release');
-
-    // Fetch the binary via the API asset endpoint (sends Accept header → CORS preflight
-    // passes on api.github.com, which then redirects to the CDN with CORS headers)
-    const gltf = await loadGLBFromURL(
-      glbAsset.url,
-      (loaded, total, pct) => {
-        if (pct !== null) {
-          setProgress(pct * 0.85);
-          setStatus(`Downloading… ${Math.round(pct)}%`);
-        } else {
-          const mb = (loaded / 1048576).toFixed(1);
-          setStatus(`Downloading… ${mb} MB`);
-          setProgress(Math.min(85, (loaded / (74 * 1048576)) * 85));
-        }
-      },
-      { Accept: 'application/octet-stream' }
-    );
-
+    const gltf = await loadGLBFromURL('./WaterExtractorWebsite.glb', (loaded, total, pct) => {
+      if (pct !== null) {
+        setProgress(pct * 0.85);
+        setStatus(`Downloading… ${Math.round(pct)}%`);
+      } else {
+        const mb = (loaded / 1048576).toFixed(1);
+        setStatus(`Downloading… ${mb} MB`);
+        setProgress(Math.min(85, (loaded / (74 * 1048576)) * 85));
+      }
+    });
     setProgress(88);
     setStatus('Parsing model…');
     processGLTF(gltf);
     setProgress(95);
     setStatus('Loading lighting…');
-    if (hdrAsset) loadHDR(hdrAsset.browser_download_url);
+    loadHDR('./aerodynamics_workshop_4k.hdr');
     setProgress(100);
     hideOverlay();
   } catch(e) {
