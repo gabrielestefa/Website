@@ -83,11 +83,17 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;display:flex;justify-content
 .vt-btn:hover{border-color:var(--amber);color:var(--sand)}
 .vt-btn.active{background:var(--amber);color:var(--deep);border-color:var(--amber)}
 .vt-btn.ch-active{background:var(--ice-dark);color:var(--deep);border-color:var(--ice-dark)}
-.viewer-canvas-wrap{position:relative;height:540px;background:#0d0b08}
-#viewer-canvas{width:100%;height:100%;display:block;cursor:grab;outline:none}
+.viewer-canvas-wrap{position:relative;height:540px;background:#0d0b08;display:flex}
+.viewer-canvas-wrap.uv-split #viewer-canvas{width:50%}
+.viewer-canvas-wrap.uv-split .uv-panel{display:flex!important}
+#viewer-canvas{width:100%;height:100%;display:block;cursor:grab;outline:none;flex-shrink:0}
 #viewer-canvas:active{cursor:grabbing}
+.uv-panel{flex:1;border-left:1px solid rgba(212,130,58,0.15);overflow:hidden;display:none;align-items:stretch}
+#uv-canvas{width:100%;height:100%;display:block;image-rendering:pixelated}
 .viewer-overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:#0d0b08;z-index:10;transition:opacity 0.5s,visibility 0.5s}
 .viewer-overlay.gone{opacity:0;visibility:hidden;pointer-events:none}
+.vt-select{font-family:var(--mono);font-size:10px;letter-spacing:0.08em;text-transform:uppercase;padding:5px 8px;background:var(--deep2);border:1px solid rgba(255,255,255,0.1);color:var(--sand);cursor:pointer;border-radius:2px;outline:none;transition:border-color 0.2s}
+.vt-select:hover,.vt-select:focus{border-color:var(--amber);color:var(--sand-light)}
 .load-spinner{width:32px;height:32px;border:2px solid rgba(212,130,58,0.2);border-top-color:var(--amber);border-radius:50%;animation:spin 0.9s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 .load-bar-track{width:200px;height:2px;background:rgba(255,255,255,0.08);border-radius:1px;overflow:hidden}
@@ -241,30 +247,38 @@ footer{display:flex;justify-content:space-between;align-items:center;padding:24p
     <div class="viewer-toolbar">
       <div class="vt-group">
         <span class="vt-label">Render</span>
-        <button class="vt-btn active" id="btn-beauty" onclick="setMode('beauty')">Beauty</button>
-        <button class="vt-btn" id="btn-wireframe" onclick="setMode('wireframe')">Wireframe</button>
-        <button class="vt-btn" id="btn-uv" onclick="setMode('uv')">UV Checker</button>
+        <button class="vt-btn active" id="btn-beauty"    onclick="setMode('beauty')">Beauty</button>
+        <button class="vt-btn"        id="btn-wireframe" onclick="setMode('wireframe')">Wireframe</button>
+        <button class="vt-btn"        id="btn-uv"        onclick="setMode('uv')">UV Layout</button>
+        <button class="vt-btn"        id="btn-texture"   onclick="setMode('texture')">Texture</button>
       </div>
-      <div class="vt-group">
-        <span class="vt-label">Texture</span>
-        <button class="vt-btn" id="btn-diffuse" onclick="setMode('diffuse')">Diffuse</button>
-        <button class="vt-btn" id="btn-normal" onclick="setMode('normal')">Normal</button>
-        <button class="vt-btn" id="btn-rma" onclick="setMode('rma')">RMA</button>
+      <!-- UV-set picker — visible only in UV Layout mode -->
+      <div class="vt-group" id="grp-uvset" style="display:none">
+        <span class="vt-label">UV Set</span>
+        <select class="vt-select" id="uv-set-select" onchange="setUVSet(this.value)">
+          <option value="uv">Channel 0</option>
+          <option value="uv2">Channel 1</option>
+        </select>
       </div>
-      <div class="vt-group" id="rma-channels" style="display:none">
-        <span class="vt-label">Channel</span>
-        <button class="vt-btn ch-active" id="btn-ch-r" onclick="setRMAChannel('r')">R · Roughness</button>
-        <button class="vt-btn" id="btn-ch-g" onclick="setRMAChannel('g')">G · Metallic</button>
-        <button class="vt-btn" id="btn-ch-b" onclick="setRMAChannel('b')">B · AO</button>
+      <!-- Texture-map picker — visible only in Texture mode -->
+      <div class="vt-group" id="grp-texmap" style="display:none">
+        <span class="vt-label">Map</span>
+        <select class="vt-select" id="tex-map-select" onchange="setTexMap(this.value)">
+          <option value="diffuse">Diffuse</option>
+          <option value="normal">Normal</option>
+          <option value="rma_r">RMA · R · Roughness</option>
+          <option value="rma_g">RMA · G · Metallic</option>
+          <option value="rma_b">RMA · B · AO</option>
+        </select>
       </div>
-      <div class="vt-group">
+      <div class="vt-group" style="margin-left:auto;margin-right:0;padding-right:0;border-right:none">
         <span class="vt-label">Material</span>
-        <button class="vt-btn active" id="btn-mat-main" onclick="setActiveMat('main')">Main</button>
-        <button class="vt-btn" id="btn-mat-details" onclick="setActiveMat('details')">Details</button>
+        <button class="vt-btn active" id="btn-mat-main"    onclick="setActiveMat('main')">Main</button>
+        <button class="vt-btn"        id="btn-mat-details"  onclick="setActiveMat('details')">Details</button>
       </div>
     </div>
 
-    <div class="viewer-canvas-wrap">
+    <div class="viewer-canvas-wrap" id="viewer-canvas-wrap">
       <div class="viewer-overlay" id="v-overlay">
         <div class="load-spinner" id="v-spinner"></div>
         <div class="load-bar-track"><div class="load-bar-fill" id="v-bar"></div></div>
@@ -276,6 +290,10 @@ footer{display:flex;justify-content:space-between;align-items:center;padding:24p
         </div>
       </div>
       <canvas id="viewer-canvas" tabindex="0"></canvas>
+      <!-- UV layout 2-D panel — shown only in UV Layout mode -->
+      <div id="uv-panel" class="uv-panel" style="display:none">
+        <canvas id="uv-canvas"></canvas>
+      </div>
     </div>
 
     <div class="viewer-info-strip">
@@ -377,10 +395,14 @@ import { RGBELoader }  from 'three/addons/loaders/RGBELoader.js';
 // ── State ─────────────────────────────────────────────────────────────────────
 let renderer, scene, camera, clock;
 let model = null;
-let origMats = {};   // { main: Material, details: Material }
-let texMaps = {};    // { main_diffuse, main_normal, main_rma, details_diffuse, ... }
+let origMats = {};        // kept for compat; may be empty if mat names differ
+let texMaps  = {};        // kept for compat
+const meshOrigMat  = new Map(); // mesh → original Material
+const meshTextures = new Map(); // mesh → { diffuse, normal, rma }
 let uvTex = null;
-let currentMode = 'beauty';
+let currentMode   = 'beauty';
+let currentTexMap = 'diffuse';  // active map in Texture mode
+let currentUVSet  = 'uv';       // 'uv' | 'uv2' | 'uv3'
 let activeMat = 'main';
 let rmaChannel = 'r';
 
@@ -516,15 +538,12 @@ function normalViewMat(tex) {
 // ── Apply display mode ────────────────────────────────────────────────────────
 function applyMode() {
   if (!model) return;
-  const mk = activeMat;
   model.traverse(child => {
     if (!child.isMesh) return;
-    const mn = (child.material?.name || '').toLowerCase();
-    if (mn !== 'main' && mn !== 'details') return;
-    const cmk = mn; // 'main' or 'details'
+    const tex = meshTextures.get(child) || {};
     switch (currentMode) {
       case 'beauty':
-        child.material = origMats[cmk];
+        child.material = meshOrigMat.get(child) || child.material;
         break;
       case 'wireframe':
         child.material = new THREE.MeshBasicMaterial({ color: 0xd4823a, wireframe: true });
@@ -532,49 +551,111 @@ function applyMode() {
       case 'uv':
         child.material = new THREE.MeshBasicMaterial({ map: uvTex });
         break;
-      case 'diffuse': {
-        const t = texMaps[mk+'_diffuse'];
-        child.material = t ? new THREE.MeshBasicMaterial({ map: t, side: THREE.DoubleSide }) : new THREE.MeshBasicMaterial({ color: 0x888888 });
-        break;
-      }
-      case 'normal': {
-        const t = texMaps[mk+'_normal'];
-        child.material = t ? normalViewMat(t) : new THREE.MeshBasicMaterial({ color: 0x8080ff });
-        break;
-      }
-      case 'rma': {
-        const t = texMaps[mk+'_rma'];
-        child.material = t ? channelMat(t, rmaChannel) : new THREE.MeshBasicMaterial({ color: 0x888888 });
+      case 'texture': {
+        const [base, ch] = currentTexMap.split('_'); // e.g. 'rma_r' → ['rma','r']
+        if (base === 'diffuse') {
+          child.material = tex.diffuse
+            ? new THREE.MeshBasicMaterial({ map: tex.diffuse })
+            : new THREE.MeshBasicMaterial({ color: 0x888888 });
+        } else if (base === 'normal') {
+          child.material = tex.normal
+            ? normalViewMat(tex.normal)
+            : new THREE.MeshBasicMaterial({ color: 0x8080ff });
+        } else { // rma channel
+          child.material = tex.rma
+            ? channelMat(tex.rma, ch || 'r')
+            : new THREE.MeshBasicMaterial({ color: 0x888888 });
+        }
         break;
       }
     }
   });
 }
 
+// ── Draw UV layout on the 2-D canvas ─────────────────────────────────────────
+function drawUVLayout(uvSetName) {
+  const canvas = document.getElementById('uv-canvas');
+  const sz = 1024;
+  canvas.width = canvas.height = sz;
+  const ctx = canvas.getContext('2d');
+
+  // background
+  ctx.fillStyle = '#0d0b08';
+  ctx.fillRect(0, 0, sz, sz);
+
+  // subtle grid lines at 0.25 increments
+  ctx.strokeStyle = 'rgba(212,130,58,0.08)';
+  ctx.lineWidth = 0.5;
+  [0.25, 0.5, 0.75, 1].forEach(t => {
+    ctx.beginPath(); ctx.moveTo(t*sz, 0); ctx.lineTo(t*sz, sz); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, t*sz); ctx.lineTo(sz, t*sz); ctx.stroke();
+  });
+
+  if (!model) return;
+
+  // draw UV wireframe for every mesh
+  ctx.strokeStyle = 'rgba(212,130,58,0.75)';
+  ctx.lineWidth = 0.7;
+  ctx.beginPath();
+  model.traverse(child => {
+    if (!child.isMesh) return;
+    const geo  = child.geometry;
+    const uvA  = geo.attributes[uvSetName];
+    if (!uvA) return;
+    const idx  = geo.index;
+    const count = idx ? idx.count : uvA.count;
+    for (let i = 0; i < count; i += 3) {
+      const a = idx ? idx.getX(i)   : i;
+      const b = idx ? idx.getX(i+1) : i+1;
+      const c = idx ? idx.getX(i+2) : i+2;
+      ctx.moveTo( uvA.getX(a)*sz,        (1-uvA.getY(a))*sz );
+      ctx.lineTo( uvA.getX(b)*sz,        (1-uvA.getY(b))*sz );
+      ctx.lineTo( uvA.getX(c)*sz,        (1-uvA.getY(c))*sz );
+      ctx.closePath();
+    }
+  });
+  ctx.stroke();
+}
+
 // ── Toolbar handlers ──────────────────────────────────────────────────────────
-const modeBtns = ['beauty','wireframe','uv','diffuse','normal','rma'];
+const modeBtns = ['beauty','wireframe','uv','texture'];
 const matBtns  = ['main','details'];
-const chBtns   = ['r','g','b'];
 
 window.setMode = mode => {
   currentMode = mode;
   modeBtns.forEach(m => document.getElementById('btn-'+m)?.classList.remove('active'));
   document.getElementById('btn-'+mode)?.classList.add('active');
-  document.getElementById('rma-channels').style.display = mode === 'rma' ? 'flex' : 'none';
+  // show/hide contextual pickers
+  document.getElementById('grp-uvset').style.display  = mode === 'uv'      ? 'flex' : 'none';
+  document.getElementById('grp-texmap').style.display = mode === 'texture'  ? 'flex' : 'none';
+  // UV split-panel
+  const wrap = document.getElementById('viewer-canvas-wrap');
+  if (mode === 'uv') {
+    wrap.classList.add('uv-split');
+    drawUVLayout(currentUVSet);
+  } else {
+    wrap.classList.remove('uv-split');
+  }
   applyMode();
 };
+
 window.setActiveMat = mat => {
   activeMat = mat;
   matBtns.forEach(m => document.getElementById('btn-mat-'+m)?.classList.remove('active'));
   document.getElementById('btn-mat-'+mat)?.classList.add('active');
   applyMode();
 };
-window.setRMAChannel = ch => {
-  rmaChannel = ch;
-  chBtns.forEach(c => document.getElementById('btn-ch-'+c)?.classList.remove('ch-active'));
-  document.getElementById('btn-ch-'+ch)?.classList.add('ch-active');
+
+window.setTexMap = map => {
+  currentTexMap = map;
   applyMode();
 };
+window.setUVSet = uvSet => {
+  currentUVSet = uvSet;
+  drawUVLayout(uvSet);
+};
+// legacy — kept so any existing onclick="setRMAChannel" still works
+window.setRMAChannel = ch => { rmaChannel = ch; applyMode(); };
 
 // ── Overlay helpers ───────────────────────────────────────────────────────────
 function setStatus(msg, isErr) {
@@ -597,20 +678,25 @@ function hideOverlay() {
   ov.classList.add('gone');
 }
 
-// ── Fit model into view ───────────────────────────────────────────────────────
+// ── Fit model into view (bottom of bbox sits on Y = 0) ───────────────────────
 function fitModel(obj) {
-  const box = new THREE.Box3().setFromObject(obj);
-  const ctr  = box.getCenter(new THREE.Vector3());
-  const size = box.getSize(new THREE.Vector3());
+  // 1 — scale to fit inside a ~3.5-unit cube
+  const box0 = new THREE.Box3().setFromObject(obj);
+  const size = box0.getSize(new THREE.Vector3());
   const maxD = Math.max(size.x, size.y, size.z);
   const scale = 3.5 / maxD;
   obj.scale.setScalar(scale);
-  obj.position.sub(ctr.multiplyScalar(scale));
-  // re-measure after scale
-  const box2  = new THREE.Box3().setFromObject(obj);
-  const ctr2  = box2.getCenter(new THREE.Vector3());
-  orbTarget.copy(ctr2);
-  orb.radius = Math.max(size.x, size.y, size.z) * scale * 1.7;
+
+  // 2 — re-measure after scale; centre X/Z, floor Y
+  const box1 = new THREE.Box3().setFromObject(obj);
+  obj.position.x -= (box1.min.x + box1.max.x) / 2;
+  obj.position.y -= box1.min.y;   // bottom → Y = 0
+  obj.position.z -= (box1.min.z + box1.max.z) / 2;
+
+  // 3 — aim orbit at the model's new centre
+  const box2 = new THREE.Box3().setFromObject(obj);
+  orbTarget.copy(box2.getCenter(new THREE.Vector3()));
+  orb.radius = maxD * scale * 1.7;
   applyOrbit();
 }
 
@@ -641,21 +727,47 @@ function processGLTF(gltf) {
   gnd.receiveShadow = true;
   scene.add(gnd);
 
+  meshOrigMat.clear();
+  meshTextures.clear();
   model.traverse(child => {
     if (!child.isMesh) return;
     child.castShadow = true;
     child.receiveShadow = true;
-    const mn = (child.material?.name || '').toLowerCase();
+
+    // per-mesh storage (works regardless of material name)
+    meshOrigMat.set(child, child.material);
+    const m = child.material;
+    meshTextures.set(child, {
+      diffuse: m.map         || null,
+      normal:  m.normalMap   || null,
+      rma:     m.metalnessMap || m.roughnessMap || null,
+    });
+
+    // also keep legacy name-keyed maps for compat
+    const mn = (m?.name || '').toLowerCase();
     if ((mn === 'main' || mn === 'details') && !origMats[mn]) {
-      origMats[mn] = child.material;
-      const m = child.material;
-      if (m.map)          texMaps[mn+'_diffuse'] = m.map;
-      if (m.normalMap)    texMaps[mn+'_normal']  = m.normalMap;
-      // RMA: in GLTFs with RMA packing, roughness=G, metallic=B but stored in metalnessMap
-      if (m.metalnessMap) texMaps[mn+'_rma']     = m.metalnessMap;
+      origMats[mn] = m;
+      if (m.map)           texMaps[mn+'_diffuse'] = m.map;
+      if (m.normalMap)     texMaps[mn+'_normal']  = m.normalMap;
+      if (m.metalnessMap)  texMaps[mn+'_rma']     = m.metalnessMap;
       else if (m.roughnessMap) texMaps[mn+'_rma'] = m.roughnessMap;
     }
   });
+
+  // populate UV-set dropdown based on what's actually in the geometry
+  const uvSets = new Set();
+  model.traverse(c => {
+    if (!c.isMesh) return;
+    Object.keys(c.geometry.attributes).forEach(k => { if (k.startsWith('uv')) uvSets.add(k); });
+  });
+  const uvSel = document.getElementById('uv-set-select');
+  uvSel.innerHTML = '';
+  [...uvSets].sort().forEach((s, i) => {
+    const opt = document.createElement('option');
+    opt.value = s; opt.textContent = `Channel ${i}`;
+    uvSel.appendChild(opt);
+  });
+  currentUVSet = [...uvSets][0] || 'uv';
 
   fitModel(model);
   scene.add(model);
