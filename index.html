@@ -94,6 +94,10 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;display:flex;justify-content
 .viewer-overlay.gone{opacity:0;visibility:hidden;pointer-events:none}
 .vt-select{font-family:var(--mono);font-size:10px;letter-spacing:0.08em;text-transform:uppercase;padding:5px 8px;background:var(--deep2);border:1px solid rgba(255,255,255,0.1);color:var(--sand);cursor:pointer;border-radius:2px;outline:none;transition:border-color 0.2s}
 .vt-select:hover,.vt-select:focus{border-color:var(--amber);color:var(--sand-light)}
+.vt-slider{-webkit-appearance:none;appearance:none;width:80px;height:3px;background:rgba(255,255,255,0.12);border-radius:2px;outline:none;cursor:pointer}
+.vt-slider::-webkit-slider-thumb{-webkit-appearance:none;width:10px;height:10px;border-radius:50%;background:var(--amber);cursor:pointer}
+.vt-slider::-moz-range-thumb{width:10px;height:10px;border-radius:50%;background:var(--amber);border:none;cursor:pointer}
+.vt-val{font-family:var(--mono);font-size:10px;color:var(--muted);min-width:22px;text-align:right}
 .load-spinner{width:32px;height:32px;border:2px solid rgba(212,130,58,0.2);border-top-color:var(--amber);border-radius:50%;animation:spin 0.9s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 .load-bar-track{width:200px;height:2px;background:rgba(255,255,255,0.08);border-radius:1px;overflow:hidden}
@@ -260,6 +264,12 @@ footer{display:flex;justify-content:space-between;align-items:center;padding:24p
           <option value="uv2">Channel 1</option>
         </select>
       </div>
+      <!-- Texel density slider — visible only in UV Layout mode -->
+      <div class="vt-group" id="grp-texel" style="display:none">
+        <span class="vt-label">Texels</span>
+        <input type="range" id="texel-slider" min="2" max="32" value="10" step="1" class="vt-slider" oninput="setCheckerTiles(+this.value)">
+        <span class="vt-val" id="texel-val">10</span>
+      </div>
       <!-- Texture-map picker — visible only in Texture mode -->
       <div class="vt-group" id="grp-texmap" style="display:none">
         <span class="vt-label">Map</span>
@@ -400,6 +410,9 @@ let texMaps  = {};        // kept for compat
 const meshOrigMat  = new Map(); // mesh → original Material
 const meshTextures = new Map(); // mesh → { diffuse, normal, rma }
 let uvTex = null;
+let checkerTiles = 10;
+const meshHueMap = new Map();      // mesh → hue (0–360), assigned at load time
+const uvOverlayMeshes = [];        // {parent, mesh} wireframe overlays active in UV mode
 let currentMode   = 'beauty';
 let currentTexMap = 'diffuse';  // active map in Texture mode
 let currentUVSet  = 'uv';       // 'uv' | 'uv2' | 'uv3'
@@ -419,7 +432,8 @@ renderer.shadowMap.enabled   = true;
 renderer.shadowMap.type      = THREE.PCFSoftShadowMap;
 
 function resize() {
-  const w = WRAP.clientWidth, h = WRAP.clientHeight;
+  const w = CANVAS.clientWidth, h = CANVAS.clientHeight;
+  if (!w || !h) return;
   renderer.setSize(w, h, false);
   if (camera) { camera.aspect = w/h; camera.updateProjectionMatrix(); }
 }
@@ -491,8 +505,8 @@ CANVAS.addEventListener('wheel', e => {
 CANVAS.addEventListener('contextmenu', e => e.preventDefault());
 
 // ── Procedural UV checker ─────────────────────────────────────────────────────
-function makeUVChecker() {
-  const sz = 1024, cells = 10, cell = sz / cells;
+function makeUVChecker(cells = 10) {
+  const sz = 1024, cell = sz / cells;
   const c = document.createElement('canvas'); c.width = c.height = sz;
   const ctx = c.getContext('2d');
   for (let r = 0; r < cells; r++) for (let cc = 0; cc < cells; cc++) {
@@ -513,6 +527,21 @@ function makeUVChecker() {
   return t;
 }
 uvTex = makeUVChecker();
+
+// ── Per-mesh UV checker material (channel-aware) ───────────────────────────────
+function makeCheckerMat(geo, useUV2) {
+  const hasUV2 = !!geo.attributes.uv2;
+  const pickUV2 = useUV2 && hasUV2;
+  const vs = pickUV2
+    ? `attribute vec2 uv2; varying vec2 vUv; void main(){ vUv=uv2; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }`
+    : `varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }`;
+  return new THREE.ShaderMaterial({
+    uniforms: { map: { value: uvTex } },
+    vertexShader: vs,
+    fragmentShader: `uniform sampler2D map; varying vec2 vUv; void main(){ gl_FragColor=vec4(texture2D(map,vUv).rgb,1.); }`,
+    side: THREE.DoubleSide
+  });
+}
 
 // ── Shader materials ──────────────────────────────────────────────────────────
 const VS = `varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }`;
@@ -535,11 +564,22 @@ function normalViewMat(tex) {
   });
 }
 
+// ── UV overlay helpers ────────────────────────────────────────────────────────
+function clearUVOverlays() {
+  uvOverlayMeshes.forEach(({ parent, mesh }) => {
+    parent.remove(mesh);
+    mesh.material.dispose();
+  });
+  uvOverlayMeshes.length = 0;
+}
+
 // ── Apply display mode ────────────────────────────────────────────────────────
 function applyMode() {
   if (!model) return;
+  clearUVOverlays();
+  const useUV2 = currentUVSet !== 'uv';
   model.traverse(child => {
-    if (!child.isMesh) return;
+    if (!child.isMesh || child.userData.uvOverlay) return;
     const tex = meshTextures.get(child) || {};
     switch (currentMode) {
       case 'beauty':
@@ -548,9 +588,21 @@ function applyMode() {
       case 'wireframe':
         child.material = new THREE.MeshBasicMaterial({ color: 0xd4823a, wireframe: true });
         break;
-      case 'uv':
-        child.material = new THREE.MeshBasicMaterial({ map: uvTex });
+      case 'uv': {
+        child.material = makeCheckerMat(child.geometry, useUV2);
+        const hue = meshHueMap.get(child) ?? 0;
+        const overlay = new THREE.Mesh(
+          child.geometry,
+          new THREE.MeshBasicMaterial({
+            color: new THREE.Color().setHSL(hue / 360, 0.8, 0.65),
+            wireframe: true, transparent: true, opacity: 0.45
+          })
+        );
+        overlay.userData.uvOverlay = true;
+        child.add(overlay);
+        uvOverlayMeshes.push({ parent: child, mesh: overlay });
         break;
+      }
       case 'texture': {
         const [base, ch] = currentTexMap.split('_'); // e.g. 'rma_r' → ['rma','r']
         if (base === 'diffuse') {
@@ -593,17 +645,22 @@ function drawUVLayout(uvSetName) {
 
   if (!model) return;
 
-  // draw UV wireframe for every mesh
-  ctx.strokeStyle = 'rgba(212,130,58,0.75)';
-  ctx.lineWidth = 0.7;
-  ctx.beginPath();
+  // collect meshes that have the requested UV set (overlays excluded)
+  const meshes = [];
   model.traverse(child => {
-    if (!child.isMesh) return;
+    if (child.isMesh && !child.userData.uvOverlay && child.geometry.attributes[uvSetName]) meshes.push(child);
+  });
+
+  ctx.lineWidth = 0.7;
+  const BATCH = 800;
+  meshes.forEach(child => {
+    const hue = meshHueMap.get(child) ?? 0;
+    ctx.strokeStyle = `hsla(${hue},80%,65%,0.8)`;
     const geo  = child.geometry;
     const uvA  = geo.attributes[uvSetName];
-    if (!uvA) return;
     const idx  = geo.index;
     const count = idx ? idx.count : uvA.count;
+    ctx.beginPath();
     for (let i = 0; i < count; i += 3) {
       const a = idx ? idx.getX(i)   : i;
       const b = idx ? idx.getX(i+1) : i+1;
@@ -612,9 +669,10 @@ function drawUVLayout(uvSetName) {
       ctx.lineTo( uvA.getX(b)*sz,        (1-uvA.getY(b))*sz );
       ctx.lineTo( uvA.getX(c)*sz,        (1-uvA.getY(c))*sz );
       ctx.closePath();
+      if ((i / 3 + 1) % BATCH === 0) { ctx.stroke(); ctx.beginPath(); }
     }
+    ctx.stroke();
   });
-  ctx.stroke();
 }
 
 // ── Toolbar handlers ──────────────────────────────────────────────────────────
@@ -626,15 +684,17 @@ window.setMode = mode => {
   modeBtns.forEach(m => document.getElementById('btn-'+m)?.classList.remove('active'));
   document.getElementById('btn-'+mode)?.classList.add('active');
   // show/hide contextual pickers
-  document.getElementById('grp-uvset').style.display  = mode === 'uv'      ? 'flex' : 'none';
-  document.getElementById('grp-texmap').style.display = mode === 'texture'  ? 'flex' : 'none';
+  document.getElementById('grp-uvset').style.display   = mode === 'uv'      ? 'flex' : 'none';
+  document.getElementById('grp-texel').style.display   = mode === 'uv'      ? 'flex' : 'none';
+  document.getElementById('grp-texmap').style.display  = mode === 'texture'  ? 'flex' : 'none';
   // UV split-panel
   const wrap = document.getElementById('viewer-canvas-wrap');
   if (mode === 'uv') {
     wrap.classList.add('uv-split');
-    drawUVLayout(currentUVSet);
+    requestAnimationFrame(() => { resize(); drawUVLayout(currentUVSet); });
   } else {
     wrap.classList.remove('uv-split');
+    requestAnimationFrame(resize);
   }
   applyMode();
 };
@@ -653,6 +713,19 @@ window.setTexMap = map => {
 window.setUVSet = uvSet => {
   currentUVSet = uvSet;
   drawUVLayout(uvSet);
+  applyMode();   // refresh 3D checker to use the selected UV channel
+};
+
+window.setCheckerTiles = n => {
+  checkerTiles = n;
+  document.getElementById('texel-val').textContent = n;
+  uvTex.dispose();
+  uvTex = makeUVChecker(n);
+  // push new texture into any active checker ShaderMaterials
+  if (model) model.traverse(child => {
+    if (!child.isMesh || child.userData.uvOverlay) return;
+    if (child.material?.uniforms?.map) child.material.uniforms.map.value = uvTex;
+  });
 };
 // legacy — kept so any existing onclick="setRMAChannel" still works
 window.setRMAChannel = ch => { rmaChannel = ch; applyMode(); };
@@ -729,6 +802,12 @@ function processGLTF(gltf) {
 
   meshOrigMat.clear();
   meshTextures.clear();
+  meshHueMap.clear();
+  // assign a stable hue to every mesh (used by UV mode + UV panel)
+  const allMeshes = [];
+  model.traverse(c => { if (c.isMesh && !c.userData.uvOverlay) allMeshes.push(c); });
+  allMeshes.forEach((m, i) => meshHueMap.set(m, (i / Math.max(allMeshes.length, 1)) * 360));
+
   model.traverse(child => {
     if (!child.isMesh) return;
     child.castShadow = true;
