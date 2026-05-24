@@ -1485,6 +1485,7 @@ async function loadManifest() {
       img.src = r2Url(p.folder, p.thumbnail || 'Thumbnail.jpg');
       img.alt = p.title;
       img.loading = 'lazy';
+      img.onerror = () => { img.style.display = 'none'; }; // hide broken images gracefully
       card.appendChild(img);
       const overlay = document.createElement('div');
       overlay.className = 'work-overlay';
