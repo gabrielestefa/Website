@@ -112,157 +112,6 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;display:flex;justify-content
 .pm-stage > .viewer-wrapper > .viewer-toolbar{flex:none}
 .pm-stage > .viewer-wrapper > .viewer-info-strip{flex:none}
 
-/* ── RESPONSIVE — tablet & phone ──────────────────────────────────────────── */
-
-/* Tablet landscape & narrow desktop: just shrink the wide 80px paddings */
-@media (max-width:1100px){
-  nav{padding:18px 32px}
-  .nav-links{gap:24px}
-  .hero-content{padding:80px 40px 60px 40px}
-  .section-header{padding:64px 40px 36px}
-  .work-grid{padding:0 40px 60px}
-  .tool-strip{padding:0 40px}
-  .about-section{padding:64px 40px;gap:48px}
-  .contact-section{padding:64px 40px;gap:48px}
-  footer{padding:24px 40px}
-  .divider{margin:0 40px}
-  #viewer-section.visible{padding:0 40px 60px}
-  .award-badge{right:32px;top:96px}
-  .award-badge img{width:60px;height:60px}
-}
-
-/* Tablet portrait & large phone: stack hero, 2-col work, vertical modal */
-@media (max-width:820px){
-  /* Nav */
-  nav{padding:14px 20px}
-  .nav-logo{font-size:15px}
-  .nav-links{gap:18px}
-  .nav-links a{font-size:10px;letter-spacing:0.1em}
-
-  /* Hero: stack image above content, keep image proportionate */
-  .hero{grid-template-columns:1fr;min-height:auto}
-  .hero-image{height:38vh;min-height:240px;max-height:380px}
-  .hero-image::after{background:linear-gradient(to bottom,transparent 30%,var(--deep) 100%)}
-  .hero-content{padding:36px 28px 56px}
-  .hero-name{font-size:clamp(34px,9vw,56px);line-height:0.92;word-break:break-word}
-  .hero-title{font-size:clamp(16px,4vw,22px);margin-bottom:24px}
-  .hero-bio{max-width:none;font-size:11px;margin-bottom:32px}
-  .award-badge{top:auto;bottom:16px;right:16px}
-  .award-badge img{width:48px;height:48px}
-  .award-badge span{font-size:7px}
-  .scroll-hint{display:none}
-
-  /* Stats: 2x2 grid */
-  .stats-bar{grid-template-columns:repeat(2,1fr)}
-  .stat{padding:20px}
-  .stat-n{font-size:30px}
-  .stat:nth-child(2n){border-right:none}
-  .stat:nth-child(-n+2){border-bottom:1px solid rgba(212,130,58,0.15)}
-
-  /* Section headers stack */
-  .section-header{padding:52px 20px 28px;flex-direction:column;align-items:flex-start;gap:16px}
-
-  /* Work grid: 2 cols. Overlay visible by default on touch */
-  .work-grid{grid-template-columns:repeat(2,1fr);padding:0 20px 48px;gap:4px}
-  .work-card .work-overlay{opacity:1;background:linear-gradient(to top,rgba(26,20,16,0.88) 0%,rgba(26,20,16,0.12) 60%,transparent 100%);padding:16px 12px 12px}
-  .work-card img{filter:saturate(1)}
-  .work-title{font-size:16px}
-
-  /* Tools / about / contact */
-  .tool-strip{padding:0 20px}
-  .tool-item{padding:18px 22px}
-  .about-section{grid-template-columns:1fr;padding:48px 28px;gap:36px}
-  .about-card{padding:28px}
-  .contact-section{grid-template-columns:1fr;padding:48px 28px;gap:36px}
-  .edu-card{padding:28px}
-  footer{flex-direction:column;gap:8px;padding:24px 20px;text-align:center}
-  .divider{margin:0 28px}
-
-  /* Project modal: thumbs become a horizontal strip below the stage */
-  .pm-header{padding:12px 16px;gap:12px}
-  .pm-title{font-size:18px}
-  .pm-subtitle{font-size:9px}
-  .pm-body{flex-direction:column}
-  .pm-stage{padding:14px}
-  .pm-thumbs{width:100%;max-height:86px;border-left:none;border-top:1px solid rgba(212,130,58,0.15);flex-direction:row;overflow-x:auto;overflow-y:hidden;padding:8px;gap:6px}
-  .pm-thumb{width:68px;height:68px;flex-shrink:0;aspect-ratio:1/1}
-  .pm-nav{width:36px;height:36px;font-size:14px}
-  .pm-nav.prev{left:8px}
-  .pm-nav.next{right:8px}
-
-  /* 3D viewer: shorter canvas, force single panel (no UV split) */
-  #viewer-section.visible{padding:0 20px 48px}
-  .viewer-canvas-wrap{height:380px}
-  .viewer-canvas-wrap.uv-split #viewer-canvas{flex:1;width:100%}
-  .viewer-canvas-wrap.uv-split .uv-panel{display:none!important}
-  .viewer-toolbar{padding:8px;gap:3px}
-  .vt-group{padding-right:6px;margin-right:3px}
-  .vt-group:last-child{margin-left:0;margin-right:0}
-  .vt-btn{font-size:9px;padding:4px 8px}
-  .vt-label{font-size:8px;padding:4px}
-  .vt-slider{width:60px}
-}
-
-/* Phone: tighter still, single-column work grid, big touch targets */
-@media (max-width:520px){
-  nav{padding:12px 14px}
-  .nav-links{gap:12px}
-  .nav-links a{font-size:9px;letter-spacing:0.08em}
-
-  /* Hero */
-  .hero-image{height:32vh;min-height:200px;max-height:320px}
-  .hero-content{padding:28px 18px 44px}
-  .hero-name{font-size:clamp(30px,10vw,46px);line-height:0.95}
-  .hero-bio{font-size:10.5px;padding-left:14px;margin-bottom:24px}
-  .hero-actions{flex-direction:column;align-items:stretch;gap:12px}
-  .btn-primary,.btn-ghost{text-align:center;padding:14px 28px}
-  .award-badge img{width:42px;height:42px}
-  .award-badge span{display:none}
-
-  /* Stats: stacked */
-  .stats-bar{grid-template-columns:1fr}
-  .stat{border-right:none!important;border-bottom:1px solid rgba(212,130,58,0.15);padding:18px 20px}
-  .stat:last-child{border-bottom:none}
-
-  /* Work grid: single column */
-  .work-grid{grid-template-columns:1fr;padding:0 14px 36px;gap:4px}
-  .section-header{padding:40px 14px 20px}
-
-  /* About / contact / footer */
-  .about-section{padding:36px 16px;gap:28px}
-  .about-card{padding:22px}
-  .contact-section{padding:36px 16px;gap:28px}
-  .edu-card{padding:22px}
-  .contact-link{padding:16px 0}
-  footer{padding:20px 14px}
-  .divider{margin:0 16px}
-
-  /* Modal: full-screen with even tighter chrome */
-  .pm-header{padding:10px 12px;gap:8px}
-  .pm-title{font-size:15px}
-  .pm-tags{display:none}
-  .pm-tab{padding:5px 9px;font-size:9px}
-  .pm-close{width:32px;height:32px;font-size:16px}
-  .pm-stage{padding:8px}
-  .pm-thumbs{max-height:68px;padding:6px;gap:4px}
-  .pm-thumb{width:52px;height:52px}
-  .pm-nav{display:none}
-  .pm-counter,.pm-caption{font-size:8px;padding:3px 8px}
-
-  /* 3D viewer */
-  #viewer-section.visible{padding:0 14px 36px}
-  .viewer-canvas-wrap{height:280px}
-  .viewer-info-strip{padding:8px 12px;gap:10px}
-  .vi-hint{display:none}
-}
-
-/* Touch devices: cards always show the overlay (no hover) */
-@media (hover:none){
-  .work-card .work-overlay{opacity:1;background:linear-gradient(to top,rgba(26,20,16,0.88) 0%,rgba(26,20,16,0.12) 60%,transparent 100%);padding:16px 12px 12px}
-  .work-card img{filter:saturate(1)}
-  .work-card:hover img{transform:none}
-}
-
 /* ── 3D VIEWER ── (hidden by default — viewer-wrapper is relocated into the project modal on demand) */
 #viewer-section{display:none}
 #viewer-section.visible{display:block;padding:0 80px 80px}
@@ -348,6 +197,158 @@ footer{display:flex;justify-content:space-between;align-items:center;padding:24p
 .hero-content>*{animation:fadeUp 0.7s ease both}
 .hero-eyebrow{animation-delay:0.1s}.hero-name{animation-delay:0.25s}.hero-title{animation-delay:0.35s}
 .hero-bio{animation-delay:0.45s}.hero-actions{animation-delay:0.55s}
+
+/* ── RESPONSIVE — tablet & phone ──────────────────────────────────────────── */
+/* These must come AFTER all desktop rules to win the cascade. */
+
+/* Tablet landscape & narrow desktop: shrink 80px paddings */
+@media (max-width:1100px){
+  nav{padding:18px 32px}
+  .nav-links{gap:24px}
+  .hero-content{padding:80px 40px 60px 40px}
+  .section-header{padding:64px 40px 36px}
+  .work-grid{padding:0 40px 60px}
+  .tool-strip{padding:0 40px}
+  .about-section{padding:64px 40px;gap:48px}
+  .contact-section{padding:64px 40px;gap:48px}
+  footer{padding:24px 40px}
+  .divider{margin:0 40px}
+  #viewer-section.visible{padding:0 40px 60px}
+  .award-badge{right:32px;top:96px}
+  .award-badge img{width:60px;height:60px}
+}
+
+/* Tablet portrait & large phone: stack everything to one column */
+@media (max-width:820px){
+  /* Nav */
+  nav{padding:14px 20px}
+  .nav-logo{font-size:15px}
+  .nav-links{gap:18px}
+  .nav-links a{font-size:10px;letter-spacing:0.1em}
+
+  /* Hero: stack image above content */
+  .hero{grid-template-columns:1fr;min-height:auto}
+  .hero-image{height:38vh;min-height:240px;max-height:380px}
+  .hero-image::after{background:linear-gradient(to bottom,transparent 30%,var(--deep) 100%)}
+  .hero-content{padding:36px 28px 56px}
+  .hero-name{font-size:clamp(32px,8vw,52px);line-height:0.95;overflow-wrap:break-word}
+  .hero-title{font-size:clamp(16px,4vw,22px);margin-bottom:24px}
+  .hero-bio{max-width:none;font-size:11px;margin-bottom:32px}
+  .award-badge{top:auto;bottom:16px;right:16px}
+  .award-badge img{width:48px;height:48px}
+  .award-badge span{font-size:7px}
+  .scroll-hint{display:none}
+
+  /* Stats: 2x2 grid */
+  .stats-bar{grid-template-columns:repeat(2,1fr)}
+  .stat{padding:20px}
+  .stat-n{font-size:30px}
+  .stat:nth-child(2n){border-right:none}
+  .stat:nth-child(-n+2){border-bottom:1px solid rgba(212,130,58,0.15)}
+
+  /* Section headers stack vertically */
+  .section-header{padding:52px 20px 28px;flex-direction:column;align-items:flex-start;gap:16px}
+
+  /* Work grid: 2 cols. Overlay visible by default on touch */
+  .work-grid{grid-template-columns:repeat(2,1fr);padding:0 20px 48px;gap:4px}
+  .work-card .work-overlay{opacity:1;background:linear-gradient(to top,rgba(26,20,16,0.88) 0%,rgba(26,20,16,0.12) 60%,transparent 100%);padding:16px 12px 12px}
+  .work-card img{filter:saturate(1)}
+  .work-title{font-size:16px}
+
+  /* Tools / about / contact — collapse 2-col grids to single column */
+  .tool-strip{padding:0 20px}
+  .tool-item{padding:18px 22px}
+  .about-section{grid-template-columns:1fr;padding:48px 28px;gap:36px}
+  .about-card{padding:28px}
+  .contact-section{grid-template-columns:1fr;padding:48px 28px;gap:36px}
+  .edu-card{padding:28px}
+  footer{flex-direction:column;gap:8px;padding:24px 20px;text-align:center}
+  .divider{margin:0 28px}
+
+  /* Project modal: thumbs become a horizontal strip below the stage */
+  .pm-header{padding:12px 16px;gap:12px}
+  .pm-title{font-size:18px}
+  .pm-subtitle{font-size:9px}
+  .pm-body{flex-direction:column}
+  .pm-stage{padding:14px}
+  .pm-thumbs{width:100%;max-height:86px;border-left:none;border-top:1px solid rgba(212,130,58,0.15);flex-direction:row;overflow-x:auto;overflow-y:hidden;padding:8px;gap:6px}
+  .pm-thumb{width:68px;height:68px;flex-shrink:0;aspect-ratio:1/1}
+  .pm-nav{width:36px;height:36px;font-size:14px}
+  .pm-nav.prev{left:8px}
+  .pm-nav.next{right:8px}
+
+  /* 3D viewer: shorter canvas, force single panel (no UV split) */
+  #viewer-section.visible{padding:0 20px 48px}
+  .viewer-canvas-wrap{height:380px}
+  .viewer-canvas-wrap.uv-split #viewer-canvas{flex:1;width:100%}
+  .viewer-canvas-wrap.uv-split .uv-panel{display:none!important}
+  .viewer-toolbar{padding:8px;gap:3px}
+  .vt-group{padding-right:6px;margin-right:3px}
+  .vt-group:last-child{margin-left:0;margin-right:0}
+  .vt-btn{font-size:9px;padding:4px 8px}
+  .vt-label{font-size:8px;padding:4px}
+  .vt-slider{width:60px}
+}
+
+/* Phone: tighter still, single-column work grid, big touch targets */
+@media (max-width:520px){
+  nav{padding:12px 14px}
+  .nav-links{gap:12px}
+  .nav-links a{font-size:9px;letter-spacing:0.08em}
+
+  /* Hero */
+  .hero-image{height:32vh;min-height:200px;max-height:320px}
+  .hero-content{padding:28px 18px 44px}
+  .hero-name{font-size:clamp(28px,9.5vw,44px);line-height:0.95}
+  .hero-bio{font-size:10.5px;padding-left:14px;margin-bottom:24px}
+  .hero-actions{flex-direction:column;align-items:stretch;gap:12px}
+  .btn-primary,.btn-ghost{text-align:center;padding:14px 28px}
+  .award-badge img{width:42px;height:42px}
+  .award-badge span{display:none}
+
+  /* Stats: stacked */
+  .stats-bar{grid-template-columns:1fr}
+  .stat{border-right:none!important;border-bottom:1px solid rgba(212,130,58,0.15);padding:18px 20px}
+  .stat:last-child{border-bottom:none}
+
+  /* Work grid: single column */
+  .work-grid{grid-template-columns:1fr;padding:0 14px 36px;gap:4px}
+  .section-header{padding:40px 14px 20px}
+
+  /* About / contact / footer */
+  .about-section{padding:36px 16px;gap:28px}
+  .about-card{padding:22px}
+  .contact-section{padding:36px 16px;gap:28px}
+  .edu-card{padding:22px}
+  .contact-link{padding:16px 0}
+  footer{padding:20px 14px}
+  .divider{margin:0 16px}
+
+  /* Modal: full-screen with even tighter chrome */
+  .pm-header{padding:10px 12px;gap:8px}
+  .pm-title{font-size:15px}
+  .pm-tags{display:none}
+  .pm-tab{padding:5px 9px;font-size:9px}
+  .pm-close{width:32px;height:32px;font-size:16px}
+  .pm-stage{padding:8px}
+  .pm-thumbs{max-height:68px;padding:6px;gap:4px}
+  .pm-thumb{width:52px;height:52px}
+  .pm-nav{display:none}
+  .pm-counter,.pm-caption{font-size:8px;padding:3px 8px}
+
+  /* 3D viewer */
+  #viewer-section.visible{padding:0 14px 36px}
+  .viewer-canvas-wrap{height:280px}
+  .viewer-info-strip{padding:8px 12px;gap:10px}
+  .vi-hint{display:none}
+}
+
+/* Touch devices: cards always show the overlay (no hover) */
+@media (hover:none){
+  .work-card .work-overlay{opacity:1;background:linear-gradient(to top,rgba(26,20,16,0.88) 0%,rgba(26,20,16,0.12) 60%,transparent 100%);padding:16px 12px 12px}
+  .work-card img{filter:saturate(1)}
+  .work-card:hover img{transform:none}
+}
 </style>
 </head>
 <body>
