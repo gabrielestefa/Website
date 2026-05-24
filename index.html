@@ -139,14 +139,17 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;display:flex;justify-content
   .nav-links{gap:18px}
   .nav-links a{font-size:10px;letter-spacing:0.1em}
 
-  /* Hero: stack image above content */
+  /* Hero: stack image above content, keep image proportionate */
   .hero{grid-template-columns:1fr;min-height:auto}
-  .hero-image{height:55vh;min-height:340px}
-  .hero-content{padding:48px 28px 64px}
-  .hero-bio{max-width:none}
-  .award-badge{top:auto;bottom:24px;right:20px}
-  .award-badge img{width:52px;height:52px}
-  .award-badge span{font-size:8px}
+  .hero-image{height:38vh;min-height:240px;max-height:380px}
+  .hero-image::after{background:linear-gradient(to bottom,transparent 30%,var(--deep) 100%)}
+  .hero-content{padding:36px 28px 56px}
+  .hero-name{font-size:clamp(34px,9vw,56px);line-height:0.92;word-break:break-word}
+  .hero-title{font-size:clamp(16px,4vw,22px);margin-bottom:24px}
+  .hero-bio{max-width:none;font-size:11px;margin-bottom:32px}
+  .award-badge{top:auto;bottom:16px;right:16px}
+  .award-badge img{width:48px;height:48px}
+  .award-badge span{font-size:7px}
   .scroll-hint{display:none}
 
   /* Stats: 2x2 grid */
@@ -207,10 +210,14 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;display:flex;justify-content
   .nav-links a{font-size:9px;letter-spacing:0.08em}
 
   /* Hero */
-  .hero-image{height:42vh;min-height:260px}
-  .hero-content{padding:36px 18px 52px}
+  .hero-image{height:32vh;min-height:200px;max-height:320px}
+  .hero-content{padding:28px 18px 44px}
+  .hero-name{font-size:clamp(30px,10vw,46px);line-height:0.95}
+  .hero-bio{font-size:10.5px;padding-left:14px;margin-bottom:24px}
   .hero-actions{flex-direction:column;align-items:stretch;gap:12px}
   .btn-primary,.btn-ghost{text-align:center;padding:14px 28px}
+  .award-badge img{width:42px;height:42px}
+  .award-badge span{display:none}
 
   /* Stats: stacked */
   .stats-bar{grid-template-columns:1fr}
