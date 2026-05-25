@@ -59,6 +59,31 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;display:flex;justify-content
 .section-title{font-family:var(--display);font-weight:700;font-size:clamp(32px,4vw,52px);line-height:0.95;letter-spacing:-0.02em;text-transform:uppercase;color:var(--sand-light)}
 .section-sub{font-family:var(--serif);font-style:italic;font-size:18px;font-weight:300;color:var(--ice);letter-spacing:0.04em;margin-top:8px}
 .section-link{font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--amber);text-decoration:none;flex-shrink:0;padding-bottom:4px;border-bottom:1px solid var(--amber);transition:color 0.2s;white-space:nowrap}
+/* ── SPOTLIGHT carousel (featured projects) ──────────────────────────────── */
+.spotlight-section{padding:0 80px 80px}
+.spotlight-card{display:grid;grid-template-columns:1fr 1.2fr;gap:48px;align-items:center;background:linear-gradient(135deg,rgba(212,130,58,0.05) 0%,rgba(26,20,16,0.7) 100%);border:1px solid rgba(212,130,58,0.18);border-radius:2px;padding:48px;min-height:380px;cursor:pointer;position:relative;overflow:hidden;transition:border-color 0.4s,transform 0.4s}
+.spotlight-card:hover{border-color:rgba(212,130,58,0.4)}
+.spotlight-text{position:relative;z-index:2;min-width:0}
+.spotlight-text>*{transition:opacity 0.35s}
+.spotlight-text.fading>*{opacity:0}
+.spot-num{font-family:var(--mono);font-size:10px;letter-spacing:0.22em;color:var(--amber);margin-bottom:18px}
+.spot-title{font-family:var(--display);font-weight:800;font-size:clamp(28px,3.4vw,46px);text-transform:uppercase;letter-spacing:0.02em;line-height:0.95;margin-bottom:14px;color:var(--sand-light)}
+.spot-badge{font-family:var(--mono);font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:var(--muted);margin-bottom:20px}
+.spot-tags{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:28px}
+.spot-tag{font-family:var(--mono);font-size:9px;letter-spacing:0.12em;text-transform:uppercase;padding:4px 10px;border:1px solid rgba(212,130,58,0.25);color:var(--amber);border-radius:1px;background:rgba(26,20,16,0.4)}
+.spot-cta{display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;letter-spacing:0.18em;text-transform:uppercase;color:var(--amber);text-decoration:none;border-bottom:1px solid var(--amber);padding-bottom:4px;transition:gap 0.3s}
+.spotlight-card:hover .spot-cta{gap:14px}
+.spotlight-image{aspect-ratio:16/10;background:var(--deep2);overflow:hidden;border:1px solid rgba(212,130,58,0.12);border-radius:1px;position:relative}
+.spotlight-image img{width:100%;height:100%;object-fit:cover;transition:transform 0.6s cubic-bezier(0.25,0.46,0.45,0.94),opacity 0.4s;filter:saturate(0.95)}
+.spotlight-image img.fading{opacity:0}
+.spotlight-card:hover .spotlight-image img{transform:scale(1.03);filter:saturate(1.05)}
+.spotlight-dots{display:flex;justify-content:center;gap:10px;margin-top:32px}
+.spot-dot{width:8px;height:8px;border-radius:50%;background:rgba(212,130,58,0.22);cursor:pointer;border:none;padding:0;transition:all 0.4s ease;font:0/0 a}
+.spot-dot:hover{background:rgba(212,130,58,0.5)}
+.spot-dot.active{width:40px;border-radius:5px;background:rgba(212,130,58,0.15);position:relative;overflow:hidden}
+.spot-dot.active::before{content:'';position:absolute;left:0;top:0;height:100%;width:0;background:var(--amber);animation:spotProgress 7s linear forwards}
+.spot-dot.active.paused::before{animation-play-state:paused}
+@keyframes spotProgress{from{width:0}to{width:100%}}
 .work-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;padding:0 80px 80px}
 .work-card{position:relative;overflow:hidden;aspect-ratio:1/1;cursor:pointer;background:var(--deep2)}
 .work-card.coming-soon{cursor:default;background:linear-gradient(135deg,rgba(212,130,58,0.04) 0%,rgba(26,20,16,0.6) 100%)}
@@ -255,6 +280,12 @@ footer{display:flex;justify-content:space-between;align-items:center;padding:24p
   .work-card img{filter:saturate(1)}
   .work-title{font-size:16px}
 
+  /* Spotlight carousel: stack with image on top */
+  .spotlight-section{padding:0 28px 48px}
+  .spotlight-card{grid-template-columns:1fr;gap:24px;padding:24px;min-height:auto}
+  .spotlight-image{order:-1;aspect-ratio:16/9}
+  .spotlight-dots{margin-top:24px}
+
   /* Tools / about / contact — collapse 2-col grids to single column */
   .tool-strip{padding:0 20px}
   .tool-item{padding:18px 22px}
@@ -314,6 +345,12 @@ footer{display:flex;justify-content:space-between;align-items:center;padding:24p
   /* Work grid: single column */
   .work-grid{grid-template-columns:1fr;padding:0 14px 36px;gap:4px}
   .section-header{padding:40px 14px 20px}
+
+  /* Spotlight even tighter */
+  .spotlight-section{padding:0 16px 36px}
+  .spotlight-card{padding:18px;gap:16px}
+  .spot-title{font-size:clamp(24px,7vw,34px)}
+  .spot-tags{margin-bottom:20px}
 
   /* About / contact / footer */
   .about-section{padding:36px 16px;gap:28px}
@@ -390,6 +427,31 @@ footer{display:flex;justify-content:space-between;align-items:center;padding:24p
   <div class="stat"><div class="stat-n">6<span>+</span></div><div class="stat-l">Major projects shipped</div></div>
   <div class="stat"><div class="stat-n">∞</div><div class="stat-l">Python scripts at midnight</div></div>
 </div>
+
+<section id="spotlight" hidden>
+  <div class="section-header">
+    <div>
+      <div class="section-eyebrow">— Spotlight</div>
+      <h2 class="section-title">Featured</h2>
+      <div class="section-sub">Hand-picked work worth a closer look</div>
+    </div>
+  </div>
+  <div class="spotlight-section">
+    <div class="spotlight-card" id="spotlight-card" role="button" tabindex="0" aria-label="Open featured project">
+      <div class="spotlight-text" id="spot-text">
+        <div class="spot-num" id="spot-num">01 / 03</div>
+        <h3 class="spot-title" id="spot-title">Title</h3>
+        <div class="spot-badge" id="spot-badge"></div>
+        <div class="spot-tags" id="spot-tags"></div>
+        <span class="spot-cta">View Project →</span>
+      </div>
+      <div class="spotlight-image">
+        <img id="spot-img" src="" alt="" loading="lazy">
+      </div>
+    </div>
+    <div class="spotlight-dots" id="spot-dots"></div>
+  </div>
+</section>
 
 <section id="work">
   <div class="section-header">
@@ -1655,7 +1717,93 @@ async function loadManifest() {
     }
     grid.appendChild(card);
   });
+
+  // Spotlight: featured carousel auto-built after cards render
+  initSpotlight(PROJECTS);
 })();
+
+// ── Spotlight carousel ─────────────────────────────────────────────────────
+// Picks the first 3 non-coming-soon projects with media and cycles them every
+// 7s. Pauses on hover/focus. Click anywhere on the card opens the lightbox.
+function initSpotlight(projects) {
+  const section  = document.getElementById('spotlight');
+  const card     = document.getElementById('spotlight-card');
+  const numEl    = document.getElementById('spot-num');
+  const titleEl  = document.getElementById('spot-title');
+  const badgeEl  = document.getElementById('spot-badge');
+  const tagsEl   = document.getElementById('spot-tags');
+  const imgEl    = document.getElementById('spot-img');
+  const textEl   = document.getElementById('spot-text');
+  const dotsEl   = document.getElementById('spot-dots');
+  if (!section || !card) return;
+
+  // Featured = first 3 non-coming-soon projects with at least one piece of media.
+  // To customise the selection, reorder PROJECTS via projects/metadata.json on R2.
+  const featured = projects
+    .filter(p => !p.comingSoon && (p.images.length || p.videos.length || p.model))
+    .slice(0, 3);
+  if (featured.length < 2) { section.hidden = true; return; }
+  section.hidden = false;
+
+  let idx = 0;
+  let timer = null;
+
+  // Build dots
+  dotsEl.innerHTML = '';
+  featured.forEach((_, i) => {
+    const dot = document.createElement('button');
+    dot.className = 'spot-dot';
+    dot.setAttribute('aria-label', `Show featured project ${i + 1}`);
+    dot.onclick = (e) => { e.stopPropagation(); go(i); restart(); };
+    dotsEl.appendChild(dot);
+  });
+  const dots = () => dotsEl.querySelectorAll('.spot-dot');
+
+  function paint(i) {
+    const p = featured[i];
+    numEl.textContent = `${String(i + 1).padStart(2, '0')} / ${String(featured.length).padStart(2, '0')}`;
+    titleEl.textContent = p.title;
+    badgeEl.textContent = p.badge || '';
+    badgeEl.style.display = p.badge ? '' : 'none';
+    tagsEl.innerHTML = (p.tags || []).map(t => `<span class="spot-tag">${t}</span>`).join('');
+    imgEl.src = (typeof r2Url === 'function')
+      ? r2Url(p.folder, p.thumbnail || 'Thumbnail.jpg')
+      : '';
+    imgEl.alt = p.title;
+    dots().forEach((d, j) => {
+      d.classList.remove('active');
+      // Force CSS animation restart by reflow
+      void d.offsetWidth;
+      if (j === i) d.classList.add('active');
+    });
+  }
+
+  function go(i) {
+    if (i === idx) return;
+    textEl.classList.add('fading');
+    imgEl.classList.add('fading');
+    setTimeout(() => {
+      idx = i;
+      paint(i);
+      textEl.classList.remove('fading');
+      imgEl.classList.remove('fading');
+    }, 250);
+  }
+  function next()    { go((idx + 1) % featured.length); }
+  function restart() { clearInterval(timer); timer = setInterval(next, 7000); paint(idx); }
+  function pause()   { clearInterval(timer); dots().forEach(d => d.classList.add('paused')); }
+  function resume()  { dots().forEach(d => d.classList.remove('paused')); restart(); }
+
+  card.onclick    = () => lightbox.open(featured[idx]);
+  card.onkeydown  = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); lightbox.open(featured[idx]); } };
+  card.onmouseenter = pause;
+  card.onmouseleave = resume;
+  card.onfocus    = pause;
+  card.onblur     = resume;
+
+  paint(0);
+  timer = setInterval(next, 7000);
+}
 </script>
 
 <!-- ── PROJECT MODAL (lightbox) ─────────────────────────────────────────────── -->
