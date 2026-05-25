@@ -61,7 +61,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;display:flex;justify-content
 .section-sub{font-family:var(--serif);font-style:italic;font-size:18px;font-weight:300;color:var(--ice);letter-spacing:0.04em;margin-top:8px}
 .section-link{font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--amber);text-decoration:none;flex-shrink:0;padding-bottom:4px;border-bottom:1px solid var(--amber);transition:color 0.2s;white-space:nowrap}
 /* ── SPOTLIGHT mini (featured projects in hero corner) ────────────────────── */
-.spotlight-mini{position:absolute;right:48px;top:240px;width:200px;z-index:9;background:rgba(26,20,16,0.78);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid rgba(212,130,58,0.18);border-radius:2px;padding:10px;cursor:pointer;transition:border-color 0.4s,transform 0.4s,background 0.4s;font-family:var(--mono)}
+.spotlight-mini{position:absolute;right:48px;bottom:48px;width:200px;z-index:9;background:rgba(26,20,16,0.78);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid rgba(212,130,58,0.18);border-radius:2px;padding:10px;cursor:pointer;transition:border-color 0.4s,transform 0.4s,background 0.4s;font-family:var(--mono)}
 .spotlight-mini:hover{border-color:rgba(212,130,58,0.45);background:rgba(26,20,16,0.88);transform:translateY(-2px)}
 .spotlight-mini[hidden]{display:none}
 .spot-mini-eyebrow{font-size:8px;letter-spacing:0.22em;color:var(--amber);text-transform:uppercase;text-align:center;margin-bottom:8px;opacity:0.85}
@@ -235,7 +235,7 @@ footer{display:flex;justify-content:space-between;align-items:center;padding:24p
   #viewer-section.visible{padding:0 40px 60px}
   .award-badge{right:32px;top:96px}
   .award-badge img{width:60px;height:60px}
-  .spotlight-mini{right:32px;top:210px;width:170px}
+  .spotlight-mini{right:32px;bottom:48px;width:170px}
   .spot-mini-title{font-size:10px}
 }
 
@@ -276,8 +276,14 @@ footer{display:flex;justify-content:space-between;align-items:center;padding:24p
   .work-card img{filter:saturate(1)}
   .work-title{font-size:16px}
 
-  /* Spotlight: hide on tablet/phone — hero is too tight to host the widget */
-  .spotlight-mini{display:none!important}
+  /* Spotlight: visible on tablet but smaller, positioned to the left of the
+     award badge at the hero bottom. Title/eyebrow hidden to save space. */
+  .spotlight-mini{bottom:16px;right:80px;width:120px;padding:6px}
+  .spot-mini-eyebrow{display:none}
+  .spot-mini-title{display:none}
+  .spot-mini-dots{margin-top:6px;gap:4px}
+  .spot-mini-dot{width:4px;height:4px}
+  .spot-mini-dot.active{width:14px;border-radius:2px}
 
   /* Tools / about / contact — collapse 2-col grids to single column */
   .tool-strip{padding:0 20px}
@@ -338,6 +344,10 @@ footer{display:flex;justify-content:space-between;align-items:center;padding:24p
   /* Work grid: single column */
   .work-grid{grid-template-columns:1fr;padding:0 14px 36px;gap:4px}
   .section-header{padding:40px 14px 20px}
+
+  /* Spotlight: tiny thumbnail-only widget in bottom corner */
+  .spotlight-mini{bottom:14px;right:68px;width:84px;padding:5px}
+  .spot-mini-dots{margin-top:5px;gap:3px}
 
   /* About / contact / footer */
   .about-section{padding:36px 16px;gap:28px}
