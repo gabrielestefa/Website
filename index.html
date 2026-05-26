@@ -251,8 +251,7 @@ footer{display:flex;justify-content:space-between;align-items:center;padding:24p
   .hero{grid-template-columns:1fr;min-height:auto}
   .hero-image{height:38vh;min-height:240px;max-height:380px}
   .hero-image::after{background:linear-gradient(to bottom,transparent 30%,var(--deep) 100%)}
-  /* Extra bottom padding reserves a clear row for spotlight + award below the buttons */
-  .hero-content{padding:36px 28px 160px}
+  .hero-content{padding:36px 28px 48px}
   .hero-name{font-size:clamp(32px,8vw,52px);line-height:0.95;overflow-wrap:break-word}
   .hero-title{font-size:clamp(16px,4vw,22px);margin-bottom:24px}
   .hero-bio{max-width:none;font-size:11px;margin-bottom:32px}
@@ -277,17 +276,18 @@ footer{display:flex;justify-content:space-between;align-items:center;padding:24p
   .work-card img{filter:saturate(1)}
   .work-title{font-size:16px}
 
-  /* Spotlight visible on tablet: thumb-only, bottom-LEFT, aligned with hero
-     padding. Award stays bottom-RIGHT. Same vertical baseline, both fit in
-     the dedicated padding zone below the buttons (160px). */
-  .spotlight-mini{bottom:22px;left:28px;right:auto;width:120px;padding:6px}
-  .spot-mini-eyebrow{display:none}
-  .spot-mini-title{display:none}
+  /* Award stays at top-right of hero (overlapping the hero image), matching
+     the desktop look. Spotlight switches to a flow element so it slots in
+     naturally below the buttons on the right side — no overlap with text. */
+  .award-badge{top:24px;right:24px;bottom:auto}
+  .award-badge img{width:48px;height:48px}
+  .award-badge span{font-size:7px}
+  .spotlight-mini{position:static;width:160px;margin:0 24px 32px auto;padding:8px}
+  .spot-mini-eyebrow{display:block;font-size:7px;margin-bottom:6px}
+  .spot-mini-title{display:flex;font-size:10px;letter-spacing:0.06em;min-height:24px;margin-top:6px}
   .spot-mini-dots{margin-top:6px;gap:4px}
   .spot-mini-dot{width:4px;height:4px}
   .spot-mini-dot.active{width:14px;border-radius:2px}
-  /* Lift award & badge text to align with the spotlight row */
-  .award-badge{bottom:32px;right:28px}
 
   /* Tools / about / contact — collapse 2-col grids to single column */
   .tool-strip{padding:0 20px}
@@ -332,7 +332,7 @@ footer{display:flex;justify-content:space-between;align-items:center;padding:24p
 
   /* Hero */
   .hero-image{height:32vh;min-height:200px;max-height:320px}
-  .hero-content{padding:28px 18px 130px}
+  .hero-content{padding:28px 18px 32px}
   .hero-name{font-size:clamp(28px,9.5vw,44px);line-height:0.95}
   .hero-bio{font-size:10.5px;padding-left:14px;margin-bottom:24px}
   .hero-actions{flex-direction:column;align-items:stretch;gap:12px}
@@ -349,12 +349,17 @@ footer{display:flex;justify-content:space-between;align-items:center;padding:24p
   .work-grid{grid-template-columns:1fr;padding:0 14px 36px;gap:4px}
   .section-header{padding:40px 14px 20px}
 
-  /* Spotlight: tiny thumbnail at bottom-left, award still bottom-right */
-  .spotlight-mini{bottom:18px;left:18px;right:auto;width:82px;padding:4px}
+  /* Award smaller, top-right corner. Spotlight stays as flow element (from
+     820px rule) but smaller and right-aligned with the page edge. */
+  .award-badge{top:18px;right:18px;bottom:auto}
+  .award-badge img{width:40px;height:40px}
+  .award-badge span{display:none}
+  .spotlight-mini{width:104px;margin:0 18px 24px auto;padding:5px}
+  .spot-mini-eyebrow{display:none}
+  .spot-mini-title{display:none}
   .spot-mini-dots{margin-top:4px;gap:3px}
   .spot-mini-dot{width:3px;height:3px}
   .spot-mini-dot.active{width:10px}
-  .award-badge{bottom:26px;right:18px}
 
   /* About / contact / footer */
   .about-section{padding:36px 16px;gap:28px}
