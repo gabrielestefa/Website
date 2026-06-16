@@ -132,17 +132,22 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;display:flex;justify-content
 .pm-stage > .viewer-wrapper > .viewer-info-strip{flex:none}
 
 /* ── Description panel (left of media; collapsible) ── */
-.pm-desc{width:340px;flex-shrink:0;border-right:1px solid rgba(212,130,58,0.15);background:rgba(26,20,16,0.5);display:flex;flex-direction:column;min-height:0;transition:width 0.3s ease,opacity 0.25s ease}
-.pm-body.desc-collapsed .pm-desc{width:0;opacity:0;border-right:none;overflow:hidden}
-.pm-desc-head{display:flex;align-items:center;justify-content:space-between;padding:18px 20px 10px;flex-shrink:0}
+/* Soft fade on the right edge instead of a hard border — blends into the media. */
+.pm-desc{width:340px;flex-shrink:0;background:linear-gradient(to right,rgba(26,20,16,0.6) 0%,rgba(26,20,16,0.5) 65%,rgba(26,20,16,0) 100%);display:flex;flex-direction:column;min-height:0;position:relative;transition:width 0.3s ease,opacity 0.25s ease}
+.pm-desc::after{content:'';position:absolute;top:8%;bottom:8%;right:0;width:1px;background:linear-gradient(to bottom,transparent,rgba(212,130,58,0.22),transparent);pointer-events:none}
+.pm-body.desc-collapsed .pm-desc{width:0;opacity:0;overflow:hidden}
+.pm-body.desc-collapsed .pm-desc::after{opacity:0}
+.pm-desc-head{display:flex;align-items:center;justify-content:space-between;padding:18px 20px 12px;flex-shrink:0;gap:12px}
 .pm-desc-label{font-family:var(--mono);font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:var(--amber)}
-.pm-desc-toggle{background:transparent;border:1px solid rgba(255,255,255,0.15);color:var(--sand);width:26px;height:26px;border-radius:2px;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);transition:all 0.2s;flex-shrink:0}
-.pm-desc-toggle:hover{border-color:var(--amber);color:var(--amber)}
-.pm-desc-body{padding:4px 20px 24px;overflow-y:auto;font-family:var(--mono);font-size:12.5px;line-height:1.7;color:var(--sand);white-space:pre-line;letter-spacing:0.01em}
+.pm-desc-toggle{background:rgba(212,130,58,0.08);border:1px solid rgba(212,130,58,0.3);color:var(--amber);height:26px;padding:0 10px;border-radius:2px;cursor:pointer;font-size:10px;letter-spacing:0.12em;text-transform:uppercase;display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);transition:all 0.2s;flex-shrink:0}
+.pm-desc-toggle:hover{background:var(--amber);color:var(--deep);border-color:var(--amber)}
+.pm-desc-toggle .pm-dt-ico{font-size:14px;line-height:1}
+/* Text fades out softly at top and bottom of the scroll area. */
+.pm-desc-body{padding:4px 22px 28px;overflow-y:auto;font-family:var(--mono);font-size:12.5px;line-height:1.7;color:var(--sand);white-space:pre-line;letter-spacing:0.01em;-webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 16px,#000 calc(100% - 26px),transparent 100%);mask-image:linear-gradient(to bottom,transparent 0,#000 16px,#000 calc(100% - 26px),transparent 100%)}
 /* Reopen tab — only visible when collapsed and a description exists */
-.pm-desc-reopen{display:none;align-self:stretch;flex-shrink:0;width:34px;border:none;border-right:1px solid rgba(212,130,58,0.15);background:rgba(26,20,16,0.5);color:var(--amber);cursor:pointer;font-family:var(--mono);font-size:14px;align-items:center;justify-content:center;gap:8px;writing-mode:vertical-rl;transition:background 0.2s,color 0.2s}
+.pm-desc-reopen{display:none;align-self:stretch;flex-shrink:0;width:36px;border:none;background:linear-gradient(to right,rgba(26,20,16,0.6),rgba(26,20,16,0));color:var(--amber);cursor:pointer;font-family:var(--mono);font-size:14px;align-items:center;justify-content:center;gap:8px;writing-mode:vertical-rl;transition:background 0.2s,color 0.2s}
 .pm-desc-reopen span{font-size:9px;letter-spacing:0.2em;text-transform:uppercase}
-.pm-desc-reopen:hover{background:rgba(212,130,58,0.12)}
+.pm-desc-reopen:hover{background:linear-gradient(to right,rgba(212,130,58,0.16),rgba(26,20,16,0))}
 .pm-body.desc-collapsed.has-desc .pm-desc-reopen{display:flex}
 /* Vertical (expanded) media mode: images/videos stack and scroll */
 .pm-stage.mode-vertical{display:block;overflow-y:auto;align-items:initial;justify-content:initial;padding:24px}
@@ -323,10 +328,12 @@ footer{display:flex;justify-content:space-between;align-items:center;padding:24p
   .pm-title{font-size:18px}
   .pm-subtitle{font-size:9px}
   .pm-body{flex-direction:column}
-  /* Description stacks on top of media, capped height, scrolls internally */
-  .pm-desc{width:100%;max-height:34vh;border-right:none;border-bottom:1px solid rgba(212,130,58,0.15)}
+  /* Description stacks on top of media, capped height, scrolls internally.
+     Divider becomes a soft horizontal fade at the bottom edge. */
+  .pm-desc{width:100%;max-height:34vh;background:linear-gradient(to bottom,rgba(26,20,16,0.6) 0%,rgba(26,20,16,0.5) 70%,rgba(26,20,16,0) 100%)}
+  .pm-desc::after{top:auto;bottom:0;left:8%;right:8%;width:auto;height:1px;background:linear-gradient(to right,transparent,rgba(212,130,58,0.22),transparent)}
   .pm-body.desc-collapsed .pm-desc{width:100%;max-height:0}
-  .pm-desc-reopen{writing-mode:horizontal-tb;width:100%;align-self:auto;height:34px;border-right:none;border-bottom:1px solid rgba(212,130,58,0.15)}
+  .pm-desc-reopen{writing-mode:horizontal-tb;width:100%;align-self:auto;height:34px;background:linear-gradient(to bottom,rgba(26,20,16,0.6),rgba(26,20,16,0))}
   .pm-stage.mode-vertical{padding:14px}
   .pm-stage{padding:14px}
   .pm-thumbs{width:100%;max-height:86px;border-left:none;border-top:1px solid rgba(212,130,58,0.15);flex-direction:row;overflow-x:auto;overflow-y:hidden;padding:8px;gap:6px}
@@ -1535,7 +1542,37 @@ const lightbox = (() => {
     return tabs;
   }
 
+  // Map a list of filenames (from one tab) into media item objects.
+  function mapItems(files, kind) {
+    const type = kind === 'videos' ? 'video' : 'image';
+    return (files || []).map(f => ({
+      kind,
+      type: f.toLowerCase().endsWith('.mp4') ? 'video' : (f.toLowerCase().endsWith('.gif') ? 'image' : type),
+      url: r2Url(currentProject.folder, f),
+      label: f
+    }));
+  }
+
+  // All images + videos of the project combined — used by vertical mode.
+  function allMediaItems() {
+    return mapItems(currentProject.images, 'images')
+      .concat(mapItems(currentProject.videos, 'videos'));
+  }
+
   function setTab(name) {
+    const vertical = !descCollapsed && hasDesc();
+    // In vertical mode all media is shown at once; a tab click just scrolls
+    // to that section (and re-clicking the active tab still scrolls).
+    if (vertical && (name === 'images' || name === 'videos')) {
+      currentTab = name;
+      [...tabsEl.querySelectorAll('.pm-tab')].forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+      viewer3D.unmount();
+      stageEl.classList.add('mode-vertical');
+      setSingleChrome(false);
+      if (!stageEl.querySelector('.pm-vert-item')) renderVertical(allMediaItems());
+      scrollToKind(name);
+      return;
+    }
     if (currentTab === name) return;
     currentTab = name;
     [...tabsEl.querySelectorAll('.pm-tab')].forEach(b => b.classList.toggle('active', b.dataset.tab === name));
@@ -1552,16 +1589,16 @@ const lightbox = (() => {
       );
       return;
     }
-    // images or videos
+    // images or videos (single one-per-page mode)
     viewer3D.unmount();
-    const files = currentProject[name] || [];
-    const type  = name === 'videos' ? 'video' : 'image';
-    currentItems = files.map(f => ({
-      type: f.toLowerCase().endsWith('.mp4') ? 'video' : (f.toLowerCase().endsWith('.gif') ? 'image' : type),
-      url: r2Url(currentProject.folder, f),
-      label: f
-    }));
+    currentItems = mapItems(currentProject[name], name);
     renderTabMedia();
+  }
+
+  function scrollToKind(kind) {
+    const first = stageEl.querySelector(`.pm-vert-item[data-kind="${kind}"]`);
+    if (first) first.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    else stageEl.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   // Render the active images/videos tab in either vertical (expanded text) or
@@ -1572,7 +1609,8 @@ const lightbox = (() => {
     if (vertical) {
       stageEl.classList.add('mode-vertical');
       setSingleChrome(false);
-      renderVertical();
+      renderVertical(allMediaItems());
+      scrollToKind(currentTab);
     } else {
       stageEl.classList.remove('mode-vertical');
       setSingleChrome(true);
@@ -1582,19 +1620,20 @@ const lightbox = (() => {
   }
 
   // Stack every item vertically for scroll-through reading alongside the text.
-  function renderVertical() {
+  function renderVertical(items) {
     clearStageMedia();
     stageEl.scrollTop = 0;
-    if (!currentItems.length) {
+    if (!items.length) {
       const empty = document.createElement('div');
       empty.className = 'pm-vert-item pm-empty';
       empty.textContent = 'No media available yet.';
       stageEl.insertBefore(empty, prevBtn);
       return;
     }
-    currentItems.forEach(item => {
+    items.forEach(item => {
       const wrap = document.createElement('div');
       wrap.className = 'pm-vert-item';
+      wrap.dataset.kind = item.kind || (item.type === 'video' ? 'videos' : 'images');
       let el;
       if (item.type === 'video') {
         el = document.createElement('video');
@@ -1934,7 +1973,7 @@ function initSpotlight(projects) {
     <aside class="pm-desc" id="pm-desc">
       <div class="pm-desc-head">
         <span class="pm-desc-label">About</span>
-        <button class="pm-desc-toggle" id="pm-desc-toggle" aria-label="Collapse description" title="Collapse">‹</button>
+        <button class="pm-desc-toggle" id="pm-desc-toggle" aria-label="Collapse description" title="Collapse description"><span class="pm-dt-ico">‹</span> Collapse</button>
       </div>
       <div class="pm-desc-body" id="pm-desc-body"></div>
     </aside>
