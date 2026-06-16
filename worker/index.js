@@ -12,7 +12,9 @@
 //
 // Per-project files (inside each projects/<Folder>/):
 //   - description.txt   → body text shown in the lightbox left panel
-//   - <N>.txt           → filename number sets display order (1.txt = first)
+//
+// Display order is controlled by a single file: MainPage/projects.txt
+//   one project (folder) name per line, top line shows first.
 //
 // Optional file: `projects/metadata.json` — top-level overrides:
 //   {
@@ -28,7 +30,7 @@
 //     }
 //   }
 //
-// Order priority: per-folder <N>.txt → metadata.order → alphabetical.
+// Order priority: MainPage/projects.txt → metadata.order → alphabetical.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const IMAGE_EXT  = /\.(jpe?g|png|gif|webp|avif)$/i;
@@ -37,11 +39,13 @@ const MODEL_EXT  = /\.(glb|gltf)$/i;
 const HDR_EXT    = /\.(hdr|exr)$/i;
 const THUMB_RE   = /^thumbnail\.(jpe?g|png|webp|gif)$/i;
 const DESC_RE    = /^description\.txt$/i;       // body text shown in the lightbox
-const ORDER_RE   = /^(\d+)\.txt$/;              // filename number = display order
 const SKIP_RE    = /^(\.|Thumbs\.db$|\.DS_Store$|metadata\.json$)/i;
 
 const CACHE_TTL  = 300;        // edge + browser cache, seconds
 const PREFIX     = 'projects/';
+// Single source of truth for display order: one project name per line.
+// First match wins; case-insensitive folder-name match.
+const ORDER_KEYS = ['MainPage/projects.txt', 'mainpage/projects.txt', 'MainPage/Projects.txt'];
 
 const CORS = {
   'Access-Control-Allow-Origin':  '*',
@@ -130,15 +134,12 @@ async function listProjects(bucket) {
       videos:      [],
       model:       null,
       description: '',
-      order:       null,   // from N.txt filename; null = unordered
       comingSoon:  m.comingSoon === true,
     };
     let glb = null, hdr = null, descFile = null;
     for (const f of files) {
-      let mo;
       if      (THUMB_RE.test(f))  { project.thumbnail = f; /* card only — not a gallery slide */ }
       else if (DESC_RE.test(f))   { descFile = f; }
-      else if ((mo = ORDER_RE.exec(f))) { project.order = parseInt(mo[1], 10); }
       else if (IMAGE_EXT.test(f)) { project.images.push(f); }
       else if (VIDEO_EXT.test(f)) { project.videos.push(f); }
       else if (MODEL_EXT.test(f)) { glb = f; }
@@ -162,22 +163,41 @@ async function listProjects(bucket) {
     } catch { /* missing/unreadable description is fine */ }
   }));
 
-  // 5. Order priority: N.txt filename number → metadata.order → alphabetical.
-  const metaRank = Array.isArray(meta.order)
-    ? new Map(meta.order.map((n, i) => [n, i]))
+  // 5. Display order from MainPage/projects.txt (one folder name per line).
+  //    Falls back to metadata.order, then alphabetical, for any project not
+  //    listed in the file.
+  const orderList = await readOrderList(bucket);
+  const txtRank   = orderList
+    ? new Map(orderList.map((n, i) => [n.toLowerCase(), i]))
     : null;
-  projects.sort((a, b) => {
-    const ao = a.order, bo = b.order;
-    if (ao != null && bo != null) return ao - bo || a.folder.localeCompare(b.folder);
-    if (ao != null) return -1;   // numbered projects come first
-    if (bo != null) return 1;
-    if (metaRank) {
-      const ai = metaRank.has(a.folder) ? metaRank.get(a.folder) : 1e9;
-      const bi = metaRank.has(b.folder) ? metaRank.get(b.folder) : 1e9;
-      if (ai !== bi) return ai - bi;
-    }
-    return a.folder.localeCompare(b.folder);
-  });
+  const metaRank  = Array.isArray(meta.order)
+    ? new Map(meta.order.map((n, i) => [n.toLowerCase(), i]))
+    : null;
+  const rankOf = (folder) => {
+    const key = folder.toLowerCase();
+    if (txtRank && txtRank.has(key))  return txtRank.get(key);
+    if (metaRank && metaRank.has(key)) return 1000 + metaRank.get(key);
+    return 1e9;   // unlisted → after everything, then alphabetical
+  };
+  projects.sort((a, b) =>
+    (rankOf(a.folder) - rankOf(b.folder)) || a.folder.localeCompare(b.folder));
 
   return projects;
+}
+
+// Read MainPage/projects.txt → array of project names (one per non-empty line).
+async function readOrderList(bucket) {
+  for (const key of ORDER_KEYS) {
+    try {
+      const obj = await bucket.get(key);
+      if (obj) {
+        const lines = (await obj.text())
+          .split(/\r?\n/)
+          .map(s => s.trim())
+          .filter(Boolean);
+        if (lines.length) return lines;
+      }
+    } catch { /* try next candidate */ }
+  }
+  return null;
 }

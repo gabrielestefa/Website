@@ -67,25 +67,40 @@ Files are classified by extension:
 
 5. Commit + push. GitHub Pages redeploys, the gallery becomes dynamic.
 
-## Optional: project metadata
+## Display order — MainPage/projects.txt
+
+Project order on the landing page is controlled by a single file:
+**`MainPage/projects.txt`** — one project (folder) name per line, top line
+shows first. Edit that one file to reorder everything.
+
+```
+Water Extractor
+Hatfield House
+Rooftop Pack
+Omni Scatter
+Vintage Dremel
+The Fjord
+Site N-8
+Landcross Play
+```
+
+- Matching is case-insensitive against the folder name.
+- Any project not listed falls to the end, alphabetically.
+- The first three listed (that have media) also become the hero spotlight.
+
+Re-upload `projects.txt` whenever you want to reorder — live within the
+5-minute edge cache (or `wrangler deploy` to bust it immediately).
+
+## Optional: project metadata (badges, tags, coming-soon)
 
 Adding a new folder on R2 will Just Work — the project's `title` defaults to
-the folder name and `badge`/`tags` are empty. To customise without redeploying
-the site, upload a single file `projects/metadata.json` to R2:
+the folder name and `badge`/`tags` are empty. To customise badges/tags without
+redeploying the site, upload a single file `projects/metadata.json` to R2
+(ordering now lives in `MainPage/projects.txt`, but a legacy `order` array here
+still works as a fallback):
 
 ```json
 {
-  "order": [
-    "Water Extractor",
-    "Hatfield House",
-    "Rooftop Pack",
-    "Omni Scatter",
-    "Vintage Dremel",
-    "The Fjord",
-    "Sanctuary of the Nomadic Soul",
-    "Site N-8",
-    "Landcross Play"
-  ],
   "projects": {
     "Water Extractor": {
       "badge": "Blender · Houdini",
@@ -103,7 +118,6 @@ the site, upload a single file `projects/metadata.json` to R2:
 }
 ```
 
-Folders not listed in `order` fall to the end alphabetically.
 Folders not listed under `projects` use their folder name as title with
 no badge / tags.
 
