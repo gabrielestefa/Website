@@ -154,6 +154,8 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;display:flex;justify-content
 .pm-stage.mode-vertical .pm-vert-item{max-width:980px;margin:0 auto 18px;display:block}
 .pm-stage.mode-vertical .pm-vert-item:last-child{margin-bottom:0}
 .pm-stage.mode-vertical img,.pm-stage.mode-vertical video{width:100%;height:auto;max-height:none;border:1px solid rgba(212,130,58,0.1)}
+/* Reserve space before lazy images load so scroll position stays stable. */
+.pm-stage.mode-vertical .pm-vert-item img{min-height:220px;background:var(--deep2)}
 
 /* ── 3D VIEWER ── (hidden by default — viewer-wrapper is relocated into the project modal on demand) */
 #viewer-section{display:none}
@@ -1565,6 +1567,8 @@ const lightbox = (() => {
     // to that section (and re-clicking the active tab still scrolls).
     if (vertical && (name === 'images' || name === 'videos')) {
       currentTab = name;
+      // Keep currentItems in sync so collapsing back to single mode works.
+      currentItems = mapItems(currentProject[name], name);
       [...tabsEl.querySelectorAll('.pm-tab')].forEach(b => b.classList.toggle('active', b.dataset.tab === name));
       viewer3D.unmount();
       stageEl.classList.add('mode-vertical');
@@ -1601,6 +1605,34 @@ const lightbox = (() => {
     else stageEl.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
+  // Bring the idx-th item of a kind to the centre of the vertical scroll.
+  function scrollToVert(kind, idx, smooth) {
+    const items = [...stageEl.querySelectorAll(`.pm-vert-item[data-kind="${kind}"]`)];
+    const el = items[idx] || items[0];
+    if (el) el.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'center' });
+  }
+
+  // Which vertical item is closest to the centre of the viewport right now,
+  // returned as {kind, idx} (idx is the position within that kind). Used to
+  // carry the user's place over when switching to the full single view.
+  function centeredVertItem() {
+    const items = [...stageEl.querySelectorAll('.pm-vert-item')];
+    if (!items.length) return null;
+    // Use live layout rects so the result reflects exactly what's on screen.
+    const stageRect = stageEl.getBoundingClientRect();
+    const mid = stageRect.top + stageRect.height / 2;
+    const count = { images: 0, videos: 0 };
+    let best = null, bestDist = Infinity;
+    for (const el of items) {
+      const kind = el.dataset.kind || 'images';
+      const idx = count[kind] !== undefined ? count[kind]++ : 0;
+      const r = el.getBoundingClientRect();
+      const dist = Math.abs((r.top + r.height / 2) - mid);
+      if (dist < bestDist) { bestDist = dist; best = { kind, idx }; }
+    }
+    return best;
+  }
+
   // Render the active images/videos tab in either vertical (expanded text) or
   // single one-per-page mode (collapsed text), per the description state.
   function renderTabMedia() {
@@ -1610,7 +1642,8 @@ const lightbox = (() => {
       stageEl.classList.add('mode-vertical');
       setSingleChrome(false);
       renderVertical(allMediaItems());
-      scrollToKind(currentTab);
+      // Carry the user's place over: centre the item that was showing.
+      scrollToVert(currentTab, currentIdx, false);
     } else {
       stageEl.classList.remove('mode-vertical');
       setSingleChrome(true);
@@ -1766,6 +1799,17 @@ const lightbox = (() => {
   nextBtn.onclick  = () => showItem(currentIdx + 1);
   closeBtn.onclick = close;
   function setCollapsed(v) {
+    // Collapsing from the vertical view → open the full image the user was
+    // looking at (closest to centre), not whatever index was stale.
+    if (v && !descCollapsed && stageEl.classList.contains('mode-vertical')) {
+      const c = centeredVertItem();
+      if (c) {
+        currentTab = c.kind;
+        currentIdx = c.idx;
+        currentItems = mapItems(currentProject[c.kind], c.kind);
+        [...tabsEl.querySelectorAll('.pm-tab')].forEach(b => b.classList.toggle('active', b.dataset.tab === c.kind));
+      }
+    }
     descCollapsed = v;
     localStorage.setItem('pm-desc-collapsed', v ? '1' : '0');
     applyDescState();
