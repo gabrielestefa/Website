@@ -120,8 +120,9 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;display:flex;justify-content
 .pm-thumb{aspect-ratio:1/1;background:var(--deep2);border:1px solid transparent;cursor:pointer;overflow:hidden;position:relative;transition:border-color 0.2s,transform 0.2s;flex-shrink:0}
 .pm-thumb:hover{border-color:rgba(212,130,58,0.4)}
 .pm-thumb.active{border-color:var(--amber)}
-.pm-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.pm-thumb img,.pm-thumb video{width:100%;height:100%;object-fit:cover;display:block}
 .pm-thumb .pm-thumb-icon{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:9px;letter-spacing:0.12em;color:var(--amber);background:rgba(13,11,8,0.6);text-transform:uppercase}
+.pm-thumb .pm-thumb-play{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:15px;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,0.7);background:rgba(13,11,8,0.18);pointer-events:none}
 .pm-counter{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);font-family:var(--mono);font-size:10px;letter-spacing:0.12em;color:var(--muted);background:rgba(26,20,16,0.7);padding:4px 12px;border-radius:2px;backdrop-filter:blur(4px)}
 .pm-caption{position:absolute;bottom:16px;right:16px;font-family:var(--mono);font-size:9px;letter-spacing:0.08em;color:var(--muted);background:rgba(26,20,16,0.7);padding:4px 10px;border-radius:2px;backdrop-filter:blur(4px);max-width:60%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 /* The 3D viewer DOM is moved into .pm-stage when a project's 3D tab is active.
@@ -1670,7 +1671,8 @@ const lightbox = (() => {
       let el;
       if (item.type === 'video') {
         el = document.createElement('video');
-        el.src = item.url; el.controls = true; el.playsInline = true; el.preload = 'metadata';
+        // #t=0.1 forces the browser to decode and paint the first frame.
+        el.src = item.url + '#t=0.1'; el.controls = true; el.playsInline = true; el.preload = 'metadata';
       } else {
         el = document.createElement('img');
         el.src = item.url; el.alt = item.label; el.loading = 'lazy';
@@ -1694,7 +1696,15 @@ const lightbox = (() => {
       const t = document.createElement('div');
       t.className = 'pm-thumb';
       if (item.type === 'video') {
-        t.innerHTML = `<div class="pm-thumb-icon">▶ Video</div>`;
+        // Seek to the first frame (#t=0.1) so the thumb shows a real preview.
+        const v = document.createElement('video');
+        v.src = item.url + '#t=0.1';
+        v.muted = true; v.preload = 'metadata'; v.playsInline = true;
+        t.appendChild(v);
+        const badge = document.createElement('div');
+        badge.className = 'pm-thumb-play';
+        badge.textContent = '▶';
+        t.appendChild(badge);
       } else {
         const img = document.createElement('img');
         img.src = item.url;
@@ -1757,6 +1767,10 @@ const lightbox = (() => {
     descBody.textContent = project.description || '';
     currentIdx = 0;
     stageEl.classList.remove('mode-vertical');
+    // Clear any media left over from a previously opened project. Without this,
+    // the vertical-mode guard sees stale .pm-vert-item nodes and skips re-render.
+    viewer3D.unmount();
+    clearStageMedia();
     // Body classes set before tab render so the first render picks the right mode.
     bodyEl.classList.toggle('desc-collapsed', descCollapsed || !hasDesc());
     bodyEl.classList.toggle('has-desc', hasDesc());
