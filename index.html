@@ -131,6 +131,25 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;display:flex;justify-content
 .pm-stage > .viewer-wrapper > .viewer-toolbar{flex:none}
 .pm-stage > .viewer-wrapper > .viewer-info-strip{flex:none}
 
+/* ── Description panel (left of media; collapsible) ── */
+.pm-desc{width:340px;flex-shrink:0;border-right:1px solid rgba(212,130,58,0.15);background:rgba(26,20,16,0.5);display:flex;flex-direction:column;min-height:0;transition:width 0.3s ease,opacity 0.25s ease}
+.pm-body.desc-collapsed .pm-desc{width:0;opacity:0;border-right:none;overflow:hidden}
+.pm-desc-head{display:flex;align-items:center;justify-content:space-between;padding:18px 20px 10px;flex-shrink:0}
+.pm-desc-label{font-family:var(--mono);font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:var(--amber)}
+.pm-desc-toggle{background:transparent;border:1px solid rgba(255,255,255,0.15);color:var(--sand);width:26px;height:26px;border-radius:2px;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);transition:all 0.2s;flex-shrink:0}
+.pm-desc-toggle:hover{border-color:var(--amber);color:var(--amber)}
+.pm-desc-body{padding:4px 20px 24px;overflow-y:auto;font-family:var(--mono);font-size:12.5px;line-height:1.7;color:var(--sand);white-space:pre-line;letter-spacing:0.01em}
+/* Reopen tab — only visible when collapsed and a description exists */
+.pm-desc-reopen{display:none;align-self:stretch;flex-shrink:0;width:34px;border:none;border-right:1px solid rgba(212,130,58,0.15);background:rgba(26,20,16,0.5);color:var(--amber);cursor:pointer;font-family:var(--mono);font-size:14px;align-items:center;justify-content:center;gap:8px;writing-mode:vertical-rl;transition:background 0.2s,color 0.2s}
+.pm-desc-reopen span{font-size:9px;letter-spacing:0.2em;text-transform:uppercase}
+.pm-desc-reopen:hover{background:rgba(212,130,58,0.12)}
+.pm-body.desc-collapsed.has-desc .pm-desc-reopen{display:flex}
+/* Vertical (expanded) media mode: images/videos stack and scroll */
+.pm-stage.mode-vertical{display:block;overflow-y:auto;align-items:initial;justify-content:initial;padding:24px}
+.pm-stage.mode-vertical .pm-vert-item{max-width:980px;margin:0 auto 18px;display:block}
+.pm-stage.mode-vertical .pm-vert-item:last-child{margin-bottom:0}
+.pm-stage.mode-vertical img,.pm-stage.mode-vertical video{width:100%;height:auto;max-height:none;border:1px solid rgba(212,130,58,0.1)}
+
 /* ── 3D VIEWER ── (hidden by default — viewer-wrapper is relocated into the project modal on demand) */
 #viewer-section{display:none}
 #viewer-section.visible{display:block;padding:0 80px 80px}
@@ -304,6 +323,11 @@ footer{display:flex;justify-content:space-between;align-items:center;padding:24p
   .pm-title{font-size:18px}
   .pm-subtitle{font-size:9px}
   .pm-body{flex-direction:column}
+  /* Description stacks on top of media, capped height, scrolls internally */
+  .pm-desc{width:100%;max-height:34vh;border-right:none;border-bottom:1px solid rgba(212,130,58,0.15)}
+  .pm-body.desc-collapsed .pm-desc{width:100%;max-height:0}
+  .pm-desc-reopen{writing-mode:horizontal-tb;width:100%;align-self:auto;height:34px;border-right:none;border-bottom:1px solid rgba(212,130,58,0.15)}
+  .pm-stage.mode-vertical{padding:14px}
   .pm-stage{padding:14px}
   .pm-thumbs{width:100%;max-height:86px;border-left:none;border-top:1px solid rgba(212,130,58,0.15);flex-direction:row;overflow-x:auto;overflow-y:hidden;padding:8px;gap:6px}
   .pm-thumb{width:68px;height:68px;flex-shrink:0;aspect-ratio:1/1}
@@ -1455,6 +1479,7 @@ const lightbox = (() => {
   const subEl     = document.getElementById('pm-subtitle');
   const tagsEl    = document.getElementById('pm-tags');
   const tabsEl    = document.getElementById('pm-tabs');
+  const bodyEl    = document.getElementById('pm-body');
   const stageEl   = document.getElementById('pm-stage');
   const thumbsEl  = document.getElementById('pm-thumbs');
   const counterEl = document.getElementById('pm-counter');
@@ -1462,11 +1487,35 @@ const lightbox = (() => {
   const prevBtn   = document.getElementById('pm-prev');
   const nextBtn   = document.getElementById('pm-next');
   const closeBtn  = document.getElementById('pm-close');
+  const descBody  = document.getElementById('pm-desc-body');
+  const descToggle= document.getElementById('pm-desc-toggle');
+  const descReopen= document.getElementById('pm-desc-reopen');
 
   let currentProject = null;
   let currentTab     = null;       // 'images' | 'videos' | 'model'
   let currentIdx     = 0;
   let currentItems   = [];         // array of {type, url, label} for the active tab
+  // Persisted user preference: collapsed text → one-per-page; expanded → vertical.
+  let descCollapsed  = localStorage.getItem('pm-desc-collapsed') === '1';
+
+  function hasDesc() { return !!(currentProject && currentProject.description); }
+
+  // Toggle the chrome that only makes sense in single (one-per-page) mode.
+  function setSingleChrome(visible) {
+    const d = visible ? '' : 'none';
+    prevBtn.style.display = nextBtn.style.display = d;
+    counterEl.style.display = captionEl.style.display = d;
+    thumbsEl.style.display = visible ? '' : 'none';
+  }
+
+  // Reflect collapse state on the body and re-render the active media tab.
+  function applyDescState() {
+    const collapsed = descCollapsed || !hasDesc();
+    bodyEl.classList.toggle('desc-collapsed', collapsed);
+    bodyEl.classList.toggle('has-desc', hasDesc());
+    descToggle.style.display = hasDesc() ? '' : 'none';
+    if (currentTab === 'images' || currentTab === 'videos') renderTabMedia();
+  }
 
   function buildTabs(project) {
     tabsEl.innerHTML = '';
@@ -1491,11 +1540,10 @@ const lightbox = (() => {
     currentTab = name;
     [...tabsEl.querySelectorAll('.pm-tab')].forEach(b => b.classList.toggle('active', b.dataset.tab === name));
     if (name === 'model') {
-      // hide stage UI affordances that don't apply to the 3D viewer
+      // 3D viewer always fills the stage (single mode); no per-page chrome.
       currentItems = [];
-      prevBtn.style.display = nextBtn.style.display = thumbsEl.style.display = 'none';
-      counterEl.style.display = captionEl.style.display = 'none';
-      // clear stage of any image/video element, then mount the viewer
+      stageEl.classList.remove('mode-vertical');
+      setSingleChrome(false);
       clearStageMedia();
       viewer3D.mount(stageEl);
       viewer3D.load(
@@ -1506,9 +1554,6 @@ const lightbox = (() => {
     }
     // images or videos
     viewer3D.unmount();
-    prevBtn.style.display = nextBtn.style.display = '';
-    thumbsEl.style.display = '';
-    counterEl.style.display = captionEl.style.display = '';
     const files = currentProject[name] || [];
     const type  = name === 'videos' ? 'video' : 'image';
     currentItems = files.map(f => ({
@@ -1516,8 +1561,51 @@ const lightbox = (() => {
       url: r2Url(currentProject.folder, f),
       label: f
     }));
-    renderThumbs();
-    showItem(0);
+    renderTabMedia();
+  }
+
+  // Render the active images/videos tab in either vertical (expanded text) or
+  // single one-per-page mode (collapsed text), per the description state.
+  function renderTabMedia() {
+    if (currentTab !== 'images' && currentTab !== 'videos') return;
+    const vertical = !descCollapsed && hasDesc();
+    if (vertical) {
+      stageEl.classList.add('mode-vertical');
+      setSingleChrome(false);
+      renderVertical();
+    } else {
+      stageEl.classList.remove('mode-vertical');
+      setSingleChrome(true);
+      renderThumbs();
+      showItem(Math.min(currentIdx, Math.max(0, currentItems.length - 1)));
+    }
+  }
+
+  // Stack every item vertically for scroll-through reading alongside the text.
+  function renderVertical() {
+    clearStageMedia();
+    stageEl.scrollTop = 0;
+    if (!currentItems.length) {
+      const empty = document.createElement('div');
+      empty.className = 'pm-vert-item pm-empty';
+      empty.textContent = 'No media available yet.';
+      stageEl.insertBefore(empty, prevBtn);
+      return;
+    }
+    currentItems.forEach(item => {
+      const wrap = document.createElement('div');
+      wrap.className = 'pm-vert-item';
+      let el;
+      if (item.type === 'video') {
+        el = document.createElement('video');
+        el.src = item.url; el.controls = true; el.playsInline = true; el.preload = 'metadata';
+      } else {
+        el = document.createElement('img');
+        el.src = item.url; el.alt = item.label; el.loading = 'lazy';
+      }
+      wrap.appendChild(el);
+      stageEl.insertBefore(wrap, prevBtn);
+    });
   }
 
   function clearStageMedia() {
@@ -1594,6 +1682,13 @@ const lightbox = (() => {
       s.textContent = t;
       tagsEl.appendChild(s);
     });
+    descBody.textContent = project.description || '';
+    currentIdx = 0;
+    stageEl.classList.remove('mode-vertical');
+    // Body classes set before tab render so the first render picks the right mode.
+    bodyEl.classList.toggle('desc-collapsed', descCollapsed || !hasDesc());
+    bodyEl.classList.toggle('has-desc', hasDesc());
+    descToggle.style.display = hasDesc() ? '' : 'none';
     buildTabs(project);
     // pick the first available tab: 3D model > images > videos
     const first = project.model ? 'model' : (project.images?.length ? 'images' : (project.videos?.length ? 'videos' : null));
@@ -1631,6 +1726,13 @@ const lightbox = (() => {
   prevBtn.onclick  = () => showItem(currentIdx - 1);
   nextBtn.onclick  = () => showItem(currentIdx + 1);
   closeBtn.onclick = close;
+  function setCollapsed(v) {
+    descCollapsed = v;
+    localStorage.setItem('pm-desc-collapsed', v ? '1' : '0');
+    applyDescState();
+  }
+  descToggle.onclick = () => setCollapsed(true);
+  descReopen.onclick = () => setCollapsed(false);
   modal.addEventListener('click', e => { if (e.target === modal) close(); });
   document.addEventListener('keydown', e => {
     if (!modal.classList.contains('open')) return;
@@ -1652,14 +1754,15 @@ async function loadManifest() {
     if (!data || !Array.isArray(data.projects)) throw new Error('bad shape');
     // Normalise to the same shape the renderer expects.
     return data.projects.map(p => ({
-      title:      p.title || p.folder,
-      folder:     p.folder,
-      badge:      p.badge || '',
-      tags:       p.tags  || [],
-      images:     p.images || [],
-      videos:     p.videos || [],
-      model:      p.model || null,
-      comingSoon: p.comingSoon === true,
+      title:       p.title || p.folder,
+      folder:      p.folder,
+      badge:       p.badge || '',
+      tags:        p.tags  || [],
+      images:      p.images || [],
+      videos:      p.videos || [],
+      model:       p.model || null,
+      description: p.description || '',
+      comingSoon:  p.comingSoon === true,
     }));
   } catch (err) {
     console.warn('[manifest] Worker fetch failed, using hardcoded fallback:', err);
@@ -1827,7 +1930,15 @@ function initSpotlight(projects) {
     <div class="pm-tabs" id="pm-tabs"></div>
     <button class="pm-close" id="pm-close" aria-label="Close">×</button>
   </header>
-  <div class="pm-body">
+  <div class="pm-body" id="pm-body">
+    <aside class="pm-desc" id="pm-desc">
+      <div class="pm-desc-head">
+        <span class="pm-desc-label">About</span>
+        <button class="pm-desc-toggle" id="pm-desc-toggle" aria-label="Collapse description" title="Collapse">‹</button>
+      </div>
+      <div class="pm-desc-body" id="pm-desc-body"></div>
+    </aside>
+    <button class="pm-desc-reopen" id="pm-desc-reopen" aria-label="Show description" title="Show description">›<span>About</span></button>
     <div class="pm-stage" id="pm-stage">
       <button class="pm-nav prev" id="pm-prev" aria-label="Previous">‹</button>
       <button class="pm-nav next" id="pm-next" aria-label="Next">›</button>
